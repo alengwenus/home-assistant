@@ -216,9 +216,51 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
+async def async_setup_entry(hass, config_entry):
+    """Set up a connection to PCHK host from a config entry."""
+    settings = {"SK_NUM_TRIES": 0, "DIM_MODE": 50}
+
+    name = config_entry.data[CONF_NAME]
+    host = config_entry.data[CONF_HOST]
+    port = config_entry.data[CONF_PORT]
+    username = config_entry.data[CONF_USERNAME]
+    password = config_entry.data[CONF_PASSWORD]
+
+    if name not in hass.data[DATA_LCN][CONF_CONNECTIONS]:
+        connection = pypck.connection.PchkConnectionManager(
+            hass.loop,
+            host,
+            port,
+            username,
+            password,
+            settings=settings,
+            connection_id=name,
+        )
+        try:
+            # establish connection to PCHK server
+            await hass.async_create_task(connection.async_connect(timeout=15))
+            hass.data[DATA_LCN][CONF_CONNECTIONS][name] = connection
+            _LOGGER.info('LCN connected to "%s"', name)
+        except TimeoutError:
+            _LOGGER.error('Connection to PCHK server "%s" failed.', name)
+            return False
+    return True
+
+
+async def async_unload_entry(hass, config_entry):
+    """Close connection to PCHK host represented by config_entry."""
+    name = config_entry.data[CONF_NAME]
+    if name in hass.data[DATA_LCN][CONF_CONNECTIONS]:
+        connection = hass.data[DATA_LCN][CONF_CONNECTIONS].pop(name)
+        await connection.async_close()
+    return True
+
+
 async def async_setup(hass, config):
     """Set up the LCN component."""
     hass.data[DATA_LCN] = {}
+    hass.data[DATA_LCN][CONF_CONNECTIONS] = {}
+    return True
 
     conf_connections = config[DOMAIN][CONF_CONNECTIONS]
     connections = []

@@ -110,6 +110,7 @@ FLOWS = [
     "kodi",
     "konnected",
     "kulersky",
+    "lcn",
     "life360",
     "lifx",
     "local_ip",

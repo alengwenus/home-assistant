@@ -816,6 +816,9 @@ pyowm==3.1.0
 # homeassistant.components.onewire
 pyownet==0.10.0.post1
 
+# homeassistant.components.lcn
+pypck==0.7.4
+
 # homeassistant.components.point
 pypoint==2.0.0
 

@@ -4,6 +4,7 @@ import logging
 import pypck
 import voluptuous as vol
 
+# from homeassistant.helpers import device_registry as dr
 from homeassistant.components.climate import DEFAULT_MAX_TEMP, DEFAULT_MIN_TEMP
 from homeassistant.const import (
     CONF_ADDRESS,
@@ -25,6 +26,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
+from . import websocket_api as wsapi
 from .const import (
     BINSENSOR_PORTS,
     CONF_CLIMATES,
@@ -244,6 +246,16 @@ async def async_setup_entry(hass, config_entry):
         except TimeoutError:
             _LOGGER.error('Connection to PCHK server "%s" failed.', name)
             return False
+
+        wsapi.async_load_websocket_api(hass)
+
+        # device_registry = await dr.async_get_registry(hass)
+        # device_registry.async_get_or_create(
+        #     config_entry_id=config_entry.entry_id,
+        #     identifiers={(DOMAIN, name)},
+        #     manufacturer='LCN',
+        #     name=name
+        # )
     return True
 
 

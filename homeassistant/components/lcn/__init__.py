@@ -5,6 +5,7 @@ import pypck
 import voluptuous as vol
 
 # from homeassistant.helpers import device_registry as dr
+from homeassistant import config_entries
 from homeassistant.components.climate import DEFAULT_MAX_TEMP, DEFAULT_MIN_TEMP
 from homeassistant.const import (
     CONF_ADDRESS,
@@ -220,13 +221,18 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup_entry(hass, config_entry):
     """Set up a connection to PCHK host from a config entry."""
-    settings = {"SK_NUM_TRIES": 0, "DIM_MODE": 50}
+
+    # print(config_entry)
 
     name = config_entry.data[CONF_NAME]
     host = config_entry.data[CONF_HOST]
     port = config_entry.data[CONF_PORT]
     username = config_entry.data[CONF_USERNAME]
     password = config_entry.data[CONF_PASSWORD]
+    settings = {
+        "SK_NUM_TRIES": config_entry.data[CONF_SK_NUM_TRIES],
+        "DIM_MODE": config_entry.data[CONF_DIM_MODE],
+    }
 
     if name not in hass.data[DATA_LCN][CONF_CONNECTIONS]:
         connection = pypck.connection.PchkConnectionManager(
@@ -247,8 +253,6 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.error('Connection to PCHK server "%s" failed.', name)
             return False
 
-        wsapi.async_load_websocket_api(hass)
-
         # device_registry = await dr.async_get_registry(hass)
         # device_registry.async_get_or_create(
         #     config_entry_id=config_entry.entry_id,
@@ -256,6 +260,9 @@ async def async_setup_entry(hass, config_entry):
         #     manufacturer='LCN',
         #     name=name
         # )
+
+    wsapi.async_load_websocket_api(hass)
+
     return True
 
 
@@ -270,8 +277,39 @@ async def async_unload_entry(hass, config_entry):
 
 async def async_setup(hass, config):
     """Set up the LCN component."""
-    hass.data[DATA_LCN] = {}
-    hass.data[DATA_LCN][CONF_CONNECTIONS] = {}
+    if DATA_LCN not in hass.data:
+        hass.data[DATA_LCN] = {}
+    if CONF_CONNECTIONS not in hass.data[DATA_LCN]:
+        hass.data[DATA_LCN][CONF_CONNECTIONS] = {}
+
+    if DOMAIN not in config:
+        return True
+
+    unique_ids = {
+        config_entry.unique_id: config_entry
+        for config_entry in hass.config_entries.async_entries(DOMAIN)
+    }
+
+    #              [config_entry.unique_id for config_entry in
+    #               hass.config_entries.async_entries(DOMAIN)]
+    config_connections = config[DOMAIN][CONF_CONNECTIONS]
+
+    # print(dir(hass.config_entries.async_entries(DOMAIN)[0]))
+
+    for config_connection in config_connections:
+        connection_name = config_connection.get(CONF_NAME)
+        if connection_name in unique_ids:
+            # continue
+            await unique_ids[connection_name].async_remove()
+
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": config_entries.SOURCE_IMPORT},
+                data=config_connection,
+            )
+        )
+
     return True
 
     conf_connections = config[DOMAIN][CONF_CONNECTIONS]

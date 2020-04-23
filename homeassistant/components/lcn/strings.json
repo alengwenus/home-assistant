@@ -1,18 +1,24 @@
 {
-    "config": {
-        "title": "LCN",
-        "step": {
-            "user": {
-                "title": "Setup PCHK",
-                "description": "Set up new PCHK connection.",
-                "data": {
-                    "name": "Name",
-                    "host": "Host IP",
-                    "port": "Port",
-                    "username": "Username",
-                    "password": "Password"
-                }
-            }
+  "config": {
+    "step": {
+      "user": {
+        "title": "Setup PCHK",
+        "description": "Set up new PCHK connection.",
+        "data": {
+          "name": "Name",
+          "host": "Host IP",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password"
         }
+      }
+    },
+    "abort": {
+      "authentication_error": "Authentication failed. Wrong username or password.",
+      "license_error": "Maximum number of connections was reached. An additional licence key is required.",
+      "lcn_not_connected_error": "No connection to the LCN hardware bus.",
+      "connection_timeout": "Unable to connect to PCHK.",
+      "already_configured": "PCHK connection with the same name is already configured."
     }
+  }
 }

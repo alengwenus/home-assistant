@@ -15,7 +15,7 @@ from homeassistant.const import (
 )
 import homeassistant.helpers.config_validation as cv
 
-from .const import CONF_DIM_MODE, CONF_SK_NUM_TRIES, DOMAIN
+from .const import CONF_DIM_MODE, CONF_SK_NUM_TRIES, DIM_MODES, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,7 +29,10 @@ async def _validate_connection(hass, user_input):
     sk_num_tries = user_input[CONF_SK_NUM_TRIES]
     dim_mode = user_input[CONF_DIM_MODE]
 
-    settings = {"SK_NUM_TRIES": sk_num_tries, "DIM_MODE": dim_mode}
+    settings = {
+        "SK_NUM_TRIES": sk_num_tries,
+        "DIM_MODE": pypck.lcn_defs.OutputPortDimMode[dim_mode],
+    }
 
     connection = pypck.connection.PchkConnectionManager(
         hass.loop,
@@ -63,8 +66,8 @@ class LcnFlowHandler(config_entries.ConfigFlow):
         data_schema[vol.Required(CONF_PORT, default=4114)] = cv.positive_int
         data_schema[vol.Required(CONF_USERNAME, default="lcn")] = str
         data_schema[vol.Required(CONF_PASSWORD, default="lcn")] = str
-        data_schema[vol.Required(CONF_SK_NUM_TRIES, default="0")] = cv.positive_int
-        data_schema[vol.Required(CONF_DIM_MODE, default="steps200")] = str
+        data_schema[vol.Required(CONF_SK_NUM_TRIES, default=0)] = cv.positive_int
+        data_schema[vol.Required(CONF_DIM_MODE, default="STEPS200")] = vol.In(DIM_MODES)
 
         if user_input is None:
             return self.async_show_form(
@@ -72,8 +75,9 @@ class LcnFlowHandler(config_entries.ConfigFlow):
             )
 
         try:
-            # establish connection to PCHK server
-            entry = await self.async_set_unique_id(user_input[CONF_NAME])
+            # set a unique_id for this config flow
+            # (alternatively return already existing entry)
+            entry = await self.async_set_unique_id("lcn_" + user_input[CONF_NAME])
             if entry:
                 return self.async_abort(reason="already_configured")
             await _validate_connection(self.hass, user_input)
@@ -93,8 +97,9 @@ class LcnFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_import(self, info):
         """Import existing configuration from LCN."""
-        if self._async_current_entries():
-            return self.async_abort(reason="already_setup")
+        entry = await self.async_set_unique_id("lcn_" + info[CONF_NAME])
+        if entry:
+            await self.hass.config_entries.async_remove(entry.entry_id)
 
         return self.async_create_entry(
             title="{} (import from configuration.yaml)".format(info[CONF_NAME]),

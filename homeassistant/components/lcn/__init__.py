@@ -229,9 +229,12 @@ async def async_setup_entry(hass, config_entry):
     port = config_entry.data[CONF_PORT]
     username = config_entry.data[CONF_USERNAME]
     password = config_entry.data[CONF_PASSWORD]
+    sk_num_tries = config_entry.data[CONF_SK_NUM_TRIES]
+    dim_mode = config_entry.data[CONF_DIM_MODE]
+
     settings = {
-        "SK_NUM_TRIES": config_entry.data[CONF_SK_NUM_TRIES],
-        "DIM_MODE": config_entry.data[CONF_DIM_MODE],
+        "SK_NUM_TRIES": sk_num_tries,
+        "DIM_MODE": pypck.lcn_defs.OutputPortDimMode[dim_mode],
     }
 
     if name not in hass.data[DATA_LCN][CONF_CONNECTIONS]:
@@ -285,23 +288,10 @@ async def async_setup(hass, config):
     if DOMAIN not in config:
         return True
 
-    unique_ids = {
-        config_entry.unique_id: config_entry
-        for config_entry in hass.config_entries.async_entries(DOMAIN)
-    }
-
-    #              [config_entry.unique_id for config_entry in
-    #               hass.config_entries.async_entries(DOMAIN)]
+    # initialize a config_flow for all lcn configurations read from
+    # configuration.yaml
     config_connections = config[DOMAIN][CONF_CONNECTIONS]
-
-    # print(dir(hass.config_entries.async_entries(DOMAIN)[0]))
-
     for config_connection in config_connections:
-        connection_name = config_connection.get(CONF_NAME)
-        if connection_name in unique_ids:
-            # continue
-            await unique_ids[connection_name].async_remove()
-
         hass.async_create_task(
             hass.config_entries.flow.async_init(
                 DOMAIN,
@@ -309,7 +299,6 @@ async def async_setup(hass, config):
                 data=config_connection,
             )
         )
-
     return True
 
     conf_connections = config[DOMAIN][CONF_CONNECTIONS]

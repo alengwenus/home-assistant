@@ -9,7 +9,9 @@
           "host": "Host IP",
           "port": "Port",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "sk_num_tries": "Segment coupler scan attempts",
+          "dim_mode": "Dimming mode"
         }
       }
     },

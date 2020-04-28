@@ -221,9 +221,6 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup_entry(hass, config_entry):
     """Set up a connection to PCHK host from a config entry."""
-
-    # print(config_entry)
-
     name = config_entry.data[CONF_NAME]
     host = config_entry.data[CONF_HOST]
     port = config_entry.data[CONF_PORT]
@@ -252,8 +249,21 @@ async def async_setup_entry(hass, config_entry):
             await hass.async_create_task(connection.async_connect(timeout=15))
             hass.data[DATA_LCN][CONF_CONNECTIONS][name] = connection
             _LOGGER.info('LCN connected to "%s"', name)
+        except pypck.connection.PchkAuthenticationError:
+            _LOGGER.warning('Authentication on PCHK "%s" failed.', name)
+            return False
+        except pypck.connection.PchkLicenseError:
+            _LOGGER.warning(
+                'Maximum number of connections on PCHK "%s" was '
+                "reached. An additional license key is required.",
+                name,
+            )
+            return False
+        except pypck.connection.PchkLcnNotConnectedError:
+            _LOGGER.warning("No connection to the LCN hardware bus.")
+            return False
         except TimeoutError:
-            _LOGGER.error('Connection to PCHK server "%s" failed.', name)
+            _LOGGER.warning('Connection to PCHK "%s" failed.', name)
             return False
 
         # device_registry = await dr.async_get_registry(hass)
@@ -288,7 +298,7 @@ async def async_setup(hass, config):
     if DOMAIN not in config:
         return True
 
-    # initialize a config_flow for all lcn configurations read from
+    # initialize a config_flow for all LCN configurations read from
     # configuration.yaml
     config_connections = config[DOMAIN][CONF_CONNECTIONS]
     for config_connection in config_connections:

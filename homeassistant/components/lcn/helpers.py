@@ -3,14 +3,59 @@ import re
 
 import voluptuous as vol
 
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_ADDRESS, CONF_NAME
 
-from .const import DEFAULT_NAME
+from .const import (
+    CONF_ADDRESS_ID,
+    CONF_CONNECTIONS,
+    CONF_IS_GROUP,
+    CONF_SEGMENT_ID,
+    DEFAULT_NAME,
+)
 
 # Regex for address validation
 PATTERN_ADDRESS = re.compile(
     "^((?P<conn_id>\\w+)\\.)?s?(?P<seg_id>\\d+)\\.(?P<type>m|g)?(?P<id>\\d+)$"
 )
+
+
+def convert_to_config_entry_data(lcn_config):
+    """Convert the config dictionary to config_entry data."""
+    config = lcn_config.copy()
+    data = {}
+    connections = config.pop(CONF_CONNECTIONS)
+    for connection in connections:
+        connection_id = connection[CONF_NAME]
+        data[connection_id] = connection
+
+    for platform_name, platform_config in config.items():
+        for entity_config in platform_config:
+            # entity_address_config = entity_config.pop(CONF_ADDRESS)
+            address, connection_id = entity_config.pop(CONF_ADDRESS)
+
+            # address, connection_id = is_address(entity_address_config)
+            segment_id = address[0]
+            address_id = address[1]
+            address_is_group = address[2]
+
+            entity_config.update(
+                {
+                    CONF_ADDRESS_ID: address_id,
+                    CONF_SEGMENT_ID: segment_id,
+                    CONF_IS_GROUP: address_is_group,
+                }
+            )
+
+            if connection_id is None:
+                connection_id = DEFAULT_NAME
+
+            if platform_name in data[connection_id]:
+                data[connection_id][platform_name].append(entity_config)
+            else:
+                data[connection_id][platform_name] = [entity_config]
+
+    config_entries_data = [config_entry_data for config_entry_data in data.values()]
+    return config_entries_data
 
 
 def get_connection(connections, connection_id=None):
@@ -32,13 +77,15 @@ def has_unique_connection_names(connections):
     Use 'pchk' as default connection_name (or add a numeric suffix if
     pchk' is already in use.
     """
-    for suffix, connection in enumerate(connections):
+    suffix = 0
+    for connection in connections:
         connection_name = connection.get(CONF_NAME)
         if connection_name is None:
             if suffix == 0:
                 connection[CONF_NAME] = DEFAULT_NAME
             else:
                 connection[CONF_NAME] = f"{DEFAULT_NAME}{suffix:d}"
+            suffix += 1
 
     schema = vol.Schema(vol.Unique())
     schema([connection.get(CONF_NAME) for connection in connections])

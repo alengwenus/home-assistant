@@ -64,7 +64,11 @@ from .const import (
     VAR_UNITS,
     VARIABLES,
 )
-from .helpers import has_unique_connection_names, is_address
+from .helpers import (
+    convert_to_config_entry_data,
+    has_unique_connection_names,
+    is_address,
+)
 from .services import (
     DynText,
     Led,
@@ -234,6 +238,7 @@ async def async_setup_entry(hass, config_entry):
         "DIM_MODE": pypck.lcn_defs.OutputPortDimMode[dim_mode],
     }
 
+    # connect to PCHK
     if name not in hass.data[DATA_LCN][CONF_CONNECTIONS]:
         connection = pypck.connection.PchkConnectionManager(
             hass.loop,
@@ -266,6 +271,10 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.warning('Connection to PCHK "%s" failed.', name)
             return False
 
+        # forward config_entry to platforms
+        # hass.async_add_job(hass.config_entries.async_forward_entry_setup(
+        #     config_entry, "switch"))
+
         # device_registry = await dr.async_get_registry(hass)
         # device_registry.async_get_or_create(
         #     config_entry_id=config_entry.entry_id,
@@ -274,6 +283,7 @@ async def async_setup_entry(hass, config_entry):
         #     name=name
         # )
 
+    # load the wepsocket api
     wsapi.async_load_websocket_api(hass)
 
     return True
@@ -300,13 +310,14 @@ async def async_setup(hass, config):
 
     # initialize a config_flow for all LCN configurations read from
     # configuration.yaml
-    config_connections = config[DOMAIN][CONF_CONNECTIONS]
-    for config_connection in config_connections:
+    config_entries_data = convert_to_config_entry_data(config[DOMAIN])
+
+    for config_entry_data in config_entries_data:
         hass.async_create_task(
             hass.config_entries.flow.async_init(
                 DOMAIN,
                 context={"source": config_entries.SOURCE_IMPORT},
-                data=config_connection,
+                data=config_entry_data,
             )
         )
     return True

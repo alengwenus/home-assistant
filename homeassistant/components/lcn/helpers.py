@@ -58,6 +58,14 @@ def convert_to_config_entry_data(lcn_config):
     return config_entries_data
 
 
+def address_repr(address_connection):
+    """Give a representation of the hardware address."""
+    address_type = "g" if address_connection.is_group() else "m"
+    segment_id = address_connection.get_seg_id()
+    address_id = address_connection.get_id()
+    return f"{address_type}{segment_id:03d}{address_id:03d}"
+
+
 def get_connection(connections, connection_id=None):
     """Return the connection object from list."""
     if connection_id is None:

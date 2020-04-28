@@ -4,7 +4,6 @@ import logging
 import pypck
 import voluptuous as vol
 
-# from homeassistant.helpers import device_registry as dr
 from homeassistant import config_entries
 from homeassistant.components.climate import DEFAULT_MAX_TEMP, DEFAULT_MIN_TEMP
 from homeassistant.const import (
@@ -23,6 +22,7 @@ from homeassistant.const import (
     TEMP_CELSIUS,
     TEMP_FAHRENHEIT,
 )
+from homeassistant.helpers import device_registry as dr
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
@@ -30,10 +30,12 @@ from homeassistant.helpers.entity import Entity
 from . import websocket_api as wsapi
 from .const import (
     BINSENSOR_PORTS,
+    CONF_ADDRESS_ID,
     CONF_CLIMATES,
     CONF_CONNECTIONS,
     CONF_DIM_MODE,
     CONF_DIMMABLE,
+    CONF_IS_GROUP,
     CONF_LOCKABLE,
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
@@ -44,6 +46,7 @@ from .const import (
     CONF_REVERSE_TIME,
     CONF_SCENE,
     CONF_SCENES,
+    CONF_SEGMENT_ID,
     CONF_SETPOINT,
     CONF_SK_NUM_TRIES,
     CONF_SOURCE,
@@ -65,6 +68,7 @@ from .const import (
     VARIABLES,
 )
 from .helpers import (
+    address_repr,
     convert_to_config_entry_data,
     has_unique_connection_names,
     is_address,
@@ -223,6 +227,66 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
+async def async_create_devices(hass, config_entry, connection):
+    """Create devices for PCHK connection and modules / groups."""
+    device_registry = await dr.async_get_registry(hass)
+
+    # create device for PCHK (hub)
+    device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, config_entry.data[CONF_NAME])},
+        connections={(config_entry.data[CONF_HOST], config_entry.data[CONF_PORT])},
+        manufacturer="Issendorff",
+        name=config_entry.data[CONF_NAME],
+        model="PCHK",
+    )
+
+    # get all LCN module/group addresses
+    for platform in [
+        CONF_SWITCHES,
+        CONF_LIGHTS,
+        CONF_BINARY_SENSORS,
+        CONF_CLIMATES,
+        CONF_COVERS,
+        CONF_SCENES,
+        CONF_SENSORS,
+    ]:
+        if platform in config_entry.data:
+            addresses = {
+                pypck.lcn_addr.LcnAddr(
+                    entity_config[CONF_SEGMENT_ID],
+                    entity_config[CONF_ADDRESS_ID],
+                    entity_config[CONF_IS_GROUP],
+                )
+                for entity_config in config_entry.data[platform]
+            }
+
+    # initialize all modules/groups and get info
+    for address in addresses:
+        address_connection = connection.get_address_conn(address)
+        if not address.is_group():
+            await address_connection.serial_known
+            address_name = await address_connection.request_name()
+            # address_comment = await address_connection.request_comment()
+
+            # create device for module
+            device_registry.async_get_or_create(
+                config_entry_id=config_entry.entry_id,
+                identifiers={
+                    (
+                        DOMAIN,
+                        config_entry.data[CONF_NAME],
+                        address_repr(address_connection),
+                    )
+                },
+                manufacturer="Issendorff",
+                name=f"{address_name} " f"({address_repr(address_connection).upper()})",
+                model=address_connection.hw_type,
+                sw_version=f"{address_connection.software_serial:06X}",
+                via_device=(DOMAIN, config_entry.data[CONF_NAME]),
+            )
+
+
 async def async_setup_entry(hass, config_entry):
     """Set up a connection to PCHK host from a config entry."""
     name = config_entry.data[CONF_NAME]
@@ -271,17 +335,12 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.warning('Connection to PCHK "%s" failed.', name)
             return False
 
-        # forward config_entry to platforms
-        # hass.async_add_job(hass.config_entries.async_forward_entry_setup(
-        #     config_entry, "switch"))
+        await async_create_devices(hass, config_entry, connection)
 
-        # device_registry = await dr.async_get_registry(hass)
-        # device_registry.async_get_or_create(
-        #     config_entry_id=config_entry.entry_id,
-        #     identifiers={(DOMAIN, name)},
-        #     manufacturer='LCN',
-        #     name=name
-        # )
+        # forward config_entry to platforms
+        hass.async_add_job(
+            hass.config_entries.async_forward_entry_setup(config_entry, "switch")
+        )
 
     # load the wepsocket api
     wsapi.async_load_websocket_api(hass)
@@ -403,6 +462,27 @@ class LcnDevice(Entity):
         self.config = config
         self.address_connection = address_connection
         self._name = config[CONF_NAME]
+
+    @property
+    def connection_id(self):
+        """Return the connection identifier of related PCHK connection."""
+        return self.address_connection.conn.connection_id
+
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self.connection_id}/{address_repr(self.address_connection)}/"
+
+    @property
+    def device_info(self):
+        """Return device specific attributes."""
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Issendorff",
+            "model": self.address_connection.hw_type,
+            "via_device": (DOMAIN, self.connection_id),
+        }
 
     @property
     def should_poll(self):

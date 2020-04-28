@@ -5,8 +5,41 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import CONF_ADDRESS
 
 from . import LcnDevice
-from .const import CONF_CONNECTIONS, CONF_OUTPUT, DATA_LCN, OUTPUT_PORTS
+from .const import (
+    CONF_ADDRESS_ID,
+    CONF_CONNECTIONS,
+    CONF_IS_GROUP,
+    CONF_OUTPUT,
+    CONF_SEGMENT_ID,
+    DATA_LCN,
+    OUTPUT_PORTS,
+)
 from .helpers import get_connection
+
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up LCN switch platform from config_entry."""
+    if "switches" not in config_entry.data:
+        return
+
+    devices = []
+    connection_id = config_entry.data["name"]
+    connection = hass.data[DATA_LCN][CONF_CONNECTIONS][connection_id]
+
+    for config in config_entry.data["switches"]:
+        addr = pypck.lcn_addr.LcnAddr(
+            config[CONF_SEGMENT_ID], config[CONF_ADDRESS_ID], config[CONF_IS_GROUP]
+        )
+        address_connection = connection.get_address_conn(addr)
+
+        if config[CONF_OUTPUT] in OUTPUT_PORTS:
+            device = LcnOutputSwitch(config, address_connection)
+        else:  # in RELAY_PORTS
+            device = LcnRelaySwitch(config, address_connection)
+
+        devices.append(device)
+
+    async_add_devices(devices)
 
 
 async def async_setup_platform(
@@ -45,10 +78,32 @@ class LcnOutputSwitch(LcnDevice, SwitchEntity):
 
         self._is_on = None
 
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        super_unique_id = super().unique_id
+        return super_unique_id + self.config[CONF_OUTPUT].lower()
+
+    @property
+    def device_info(self):
+        """Return device specific attributes."""
+        info = super().device_info
+        model = (
+            f"{self.address_connection.hw_type:d} "
+            f"({self.config[CONF_OUTPUT].lower()})"
+        )
+        info.update(model=model)
+        return info
+
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
         await self.address_connection.activate_status_request_handler(self.output)
+
+    async def async_will_remove_from_hass(self):
+        """Run when entity will be removed from hass."""
+        await super().async_will_remove_from_hass()
+        await self.address_connection.cancel_status_request_handler(self.output)
 
     @property
     def is_on(self):
@@ -90,10 +145,32 @@ class LcnRelaySwitch(LcnDevice, SwitchEntity):
 
         self._is_on = None
 
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        super_unique_id = super().unique_id
+        return super_unique_id + self.config[CONF_OUTPUT].lower()
+
+    @property
+    def device_info(self):
+        """Return device specific attributes."""
+        info = super().device_info
+        model = (
+            f"{self.address_connection.hw_type:d} "
+            f"({self.config[CONF_OUTPUT].lower()})"
+        )
+        info.update(model=model)
+        return info
+
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
         await self.address_connection.activate_status_request_handler(self.output)
+
+    async def async_will_remove_from_hass(self):
+        """Run when entity will be removed from hass."""
+        await super().async_will_remove_from_hass()
+        await self.address_connection.cancel_status_request_handler(self.output)
 
     @property
     def is_on(self):

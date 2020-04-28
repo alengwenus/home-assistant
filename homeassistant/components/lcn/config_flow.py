@@ -77,7 +77,7 @@ class LcnFlowHandler(config_entries.ConfigFlow):
         try:
             # set a unique_id for this config flow
             # (alternatively return already existing entry)
-            entry = await self.async_set_unique_id("lcn_" + user_input[CONF_NAME])
+            entry = await self.async_set_unique_id(user_input[CONF_NAME])
             if entry:
                 return self.async_abort(reason="already_configured")
             await _validate_connection(self.hass, user_input)
@@ -97,7 +97,7 @@ class LcnFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_import(self, info):
         """Import existing configuration from LCN."""
-        entry = await self.async_set_unique_id("lcn_" + info[CONF_NAME])
+        entry = await self.async_set_unique_id(info[CONF_NAME])
         if entry:
             await self.hass.config_entries.async_remove(entry.entry_id)
 

@@ -32,6 +32,8 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         )
         address_connection = connection.get_address_conn(addr)
 
+        # await async_register_lcn_device(hass, address_connection)
+
         if config[CONF_OUTPUT] in OUTPUT_PORTS:
             device = LcnOutputSwitch(config, address_connection)
         else:  # in RELAY_PORTS
@@ -88,10 +90,7 @@ class LcnOutputSwitch(LcnDevice, SwitchEntity):
     def device_info(self):
         """Return device specific attributes."""
         info = super().device_info
-        model = (
-            f"{self.address_connection.hw_type:d} "
-            f"({self.config[CONF_OUTPUT].lower()})"
-        )
+        model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
         info.update(model=model)
         return info
 
@@ -155,22 +154,21 @@ class LcnRelaySwitch(LcnDevice, SwitchEntity):
     def device_info(self):
         """Return device specific attributes."""
         info = super().device_info
-        model = (
-            f"{self.address_connection.hw_type:d} "
-            f"({self.config[CONF_OUTPUT].lower()})"
-        )
+        model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
         info.update(model=model)
         return info
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        await self.address_connection.activate_status_request_handler(self.output)
+        if not self.address_connection.is_group():
+            await self.address_connection.activate_status_request_handler(self.output)
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
-        await self.address_connection.cancel_status_request_handler(self.output)
+        if not self.address_connection.is_group():
+            await self.address_connection.cancel_status_request_handler(self.output)
 
     @property
     def is_on(self):

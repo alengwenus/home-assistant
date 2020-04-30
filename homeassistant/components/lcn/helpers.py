@@ -22,6 +22,9 @@ PATTERN_ADDRESS = re.compile(
 )
 
 
+# def convert_to_config_entry_data
+
+
 def convert_to_config_entry_data(lcn_config):
     """Convert the config dictionary to config_entry data."""
     config = lcn_config.copy()

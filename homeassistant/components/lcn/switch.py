@@ -86,13 +86,13 @@ class LcnOutputSwitch(LcnDevice, SwitchEntity):
         super_unique_id = super().unique_id
         return super_unique_id + self.config[CONF_OUTPUT].lower()
 
-    @property
-    def device_info(self):
-        """Return device specific attributes."""
-        info = super().device_info
-        model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
-        info.update(model=model)
-        return info
+    # @property
+    # def device_info(self):
+    #     """Return device specific attributes."""
+    #     info = super().device_info
+    #     model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
+    #     info.update(model=model)
+    #     return info
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
@@ -150,13 +150,13 @@ class LcnRelaySwitch(LcnDevice, SwitchEntity):
         super_unique_id = super().unique_id
         return super_unique_id + self.config[CONF_OUTPUT].lower()
 
-    @property
-    def device_info(self):
-        """Return device specific attributes."""
-        info = super().device_info
-        model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
-        info.update(model=model)
-        return info
+    # @property
+    # def device_info(self):
+    #     """Return device specific attributes."""
+    #     info = super().device_info
+    #     model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
+    #     info.update(model=model)
+    #     return info
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""

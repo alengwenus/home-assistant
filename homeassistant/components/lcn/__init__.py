@@ -64,12 +64,11 @@ from .const import (
     VARIABLES,
 )
 from .helpers import (
-    address_repr,
-    async_register_lcn_devices,
     convert_to_config_entry_data,
     has_unique_connection_names,
     is_address,
 )
+from .helpers import address_repr  # async_register_lcn_devices,
 from .services import (
     DynText,
     Led,
@@ -273,7 +272,7 @@ async def async_setup_entry(hass, config_entry):
             return False
 
         # register LCN host, modules and groups in device registry
-        await hass.async_create_task(async_register_lcn_devices(hass, config_entry))
+        # await hass.async_create_task(async_register_lcn_devices(hass, config_entry))
 
         # forward config_entry to platforms
         hass.async_add_job(
@@ -411,21 +410,21 @@ class LcnDevice(Entity):
         """Return a unique ID."""
         return f"{address_repr(self.address_connection)}."
 
-    @property
-    def device_info(self):
-        """Return device specific attributes."""
-        if self.address_connection.is_group():
-            hw_type = "group"
-        else:
-            hw_type = "module"  # f'0x{self.address_connection.hw_type:02X}'
+    # @property
+    # def device_info(self):
+    #     """Return device specific attributes."""
+    #     if self.address_connection.is_group():
+    #         hw_type = "group"
+    #     else:
+    #         hw_type = "module"  # f'0x{self.address_connection.hw_type:02X}'
 
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Issendorff",
-            "model": hw_type,
-            "via_device": (DOMAIN, address_repr(self.address_connection)),
-        }
+    #     return {
+    #         "identifiers": {(DOMAIN, self.unique_id)},
+    #         "name": self.name,
+    #         "manufacturer": "Issendorff",
+    #         "model": hw_type,
+    #         "via_device": (DOMAIN, address_repr(self.address_connection)),
+    #     }
 
     @property
     def should_poll(self):

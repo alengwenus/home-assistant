@@ -11,6 +11,7 @@ from homeassistant.const import (
     CONF_BINARY_SENSORS,
     CONF_COVERS,
     CONF_HOST,
+    CONF_IP_ADDRESS,
     CONF_LIGHTS,
     CONF_NAME,
     CONF_PASSWORD,
@@ -64,11 +65,12 @@ from .const import (
     VARIABLES,
 )
 from .helpers import (
-    convert_to_config_entry_data,
-    has_unique_connection_names,
+    address_repr,
+    async_register_lcn_devices,
+    has_unique_host_names,
+    import_lcn_config,
     is_address,
 )
-from .helpers import address_repr  # async_register_lcn_devices,
 from .services import (
     DynText,
     Led,
@@ -205,7 +207,7 @@ CONFIG_SCHEMA = vol.Schema(
         DOMAIN: vol.Schema(
             {
                 vol.Required(CONF_CONNECTIONS): vol.All(
-                    cv.ensure_list, has_unique_connection_names, [CONNECTION_SCHEMA]
+                    cv.ensure_list, has_unique_host_names, [CONNECTION_SCHEMA]
                 ),
                 vol.Optional(CONF_BINARY_SENSORS): vol.All(
                     cv.ensure_list, [BINARY_SENSORS_SCHEMA]
@@ -225,8 +227,8 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup_entry(hass, config_entry):
     """Set up a connection to PCHK host from a config entry."""
-    name = config_entry.data[CONF_NAME]
     host = config_entry.data[CONF_HOST]
+    host_address = config_entry.data[CONF_IP_ADDRESS]
     port = config_entry.data[CONF_PORT]
     username = config_entry.data[CONF_USERNAME]
     password = config_entry.data[CONF_PASSWORD]
@@ -239,40 +241,40 @@ async def async_setup_entry(hass, config_entry):
     }
 
     # connect to PCHK
-    if name not in hass.data[DATA_LCN][CONF_CONNECTIONS]:
+    if host not in hass.data[DATA_LCN][CONF_CONNECTIONS]:
         lcn_connection = pypck.connection.PchkConnectionManager(
             hass.loop,
-            host,
+            host_address,
             port,
             username,
             password,
             settings=settings,
-            connection_id=name,
+            connection_id=host,
         )
         try:
             # establish connection to PCHK server
             await hass.async_create_task(lcn_connection.async_connect(timeout=15))
-            hass.data[DATA_LCN][CONF_CONNECTIONS][name] = lcn_connection
-            _LOGGER.info('LCN connected to "%s"', name)
+            hass.data[DATA_LCN][CONF_CONNECTIONS][host] = lcn_connection
+            _LOGGER.info('LCN connected to "%s"', host)
         except pypck.connection.PchkAuthenticationError:
-            _LOGGER.warning('Authentication on PCHK "%s" failed.', name)
+            _LOGGER.warning('Authentication on PCHK "%s" failed.', host)
             return False
         except pypck.connection.PchkLicenseError:
             _LOGGER.warning(
                 'Maximum number of connections on PCHK "%s" was '
                 "reached. An additional license key is required.",
-                name,
+                host,
             )
             return False
         except pypck.connection.PchkLcnNotConnectedError:
             _LOGGER.warning("No connection to the LCN hardware bus.")
             return False
         except TimeoutError:
-            _LOGGER.warning('Connection to PCHK "%s" failed.', name)
+            _LOGGER.warning('Connection to PCHK "%s" failed.', host)
             return False
 
         # register LCN host, modules and groups in device registry
-        # await hass.async_create_task(async_register_lcn_devices(hass, config_entry))
+        await hass.async_create_task(async_register_lcn_devices(hass, config_entry))
 
         # forward config_entry to platforms
         hass.async_add_job(
@@ -287,9 +289,12 @@ async def async_setup_entry(hass, config_entry):
 
 async def async_unload_entry(hass, config_entry):
     """Close connection to PCHK host represented by config_entry."""
-    name = config_entry.data[CONF_NAME]
-    if name in hass.data[DATA_LCN][CONF_CONNECTIONS]:
-        connection = hass.data[DATA_LCN][CONF_CONNECTIONS].pop(name)
+    # forward unloading to platforms
+    await hass.config_entries.async_forward_entry_setup(config_entry, "switch")
+
+    host = config_entry.data[CONF_HOST]
+    if host in hass.data[DATA_LCN][CONF_CONNECTIONS]:
+        connection = hass.data[DATA_LCN][CONF_CONNECTIONS].pop(host)
         await connection.async_close()
     return True
 
@@ -306,7 +311,7 @@ async def async_setup(hass, config):
 
     # initialize a config_flow for all LCN configurations read from
     # configuration.yaml
-    config_entries_data = convert_to_config_entry_data(config[DOMAIN])
+    config_entries_data = import_lcn_config(config[DOMAIN])
 
     for config_entry_data in config_entries_data:
         hass.async_create_task(
@@ -401,30 +406,30 @@ class LcnDevice(Entity):
         self._name = config[CONF_NAME]
 
     @property
-    def connection_id(self):
+    def host(self):
         """Return the connection identifier of related PCHK connection."""
         return self.address_connection.conn.connection_id
 
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return f"{address_repr(self.address_connection)}."
+        return f"{self.host}{address_repr(self.address_connection)}."
 
-    # @property
-    # def device_info(self):
-    #     """Return device specific attributes."""
-    #     if self.address_connection.is_group():
-    #         hw_type = "group"
-    #     else:
-    #         hw_type = "module"  # f'0x{self.address_connection.hw_type:02X}'
+    @property
+    def device_info(self):
+        """Return device specific attributes."""
+        if self.address_connection.is_group():
+            hw_type = "group"
+        else:
+            hw_type = "module"  # f'0x{self.address_connection.hw_type:02X}'
 
-    #     return {
-    #         "identifiers": {(DOMAIN, self.unique_id)},
-    #         "name": self.name,
-    #         "manufacturer": "Issendorff",
-    #         "model": hw_type,
-    #         "via_device": (DOMAIN, address_repr(self.address_connection)),
-    #     }
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Issendorff",
+            "model": hw_type,
+            "via_device": (DOMAIN, address_repr(self.address_connection)),
+        }
 
     @property
     def should_poll(self):

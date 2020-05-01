@@ -8,7 +8,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import (
     CONF_HOST,
-    CONF_NAME,
+    CONF_IP_ADDRESS,
     CONF_PASSWORD,
     CONF_PORT,
     CONF_USERNAME,
@@ -21,8 +21,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def _validate_connection(hass, user_input):
-    name = user_input[CONF_NAME]
-    host = user_input[CONF_HOST]
+    name = user_input[CONF_HOST]
+    host = user_input[CONF_IP_ADDRESS]
     port = user_input[CONF_PORT]
     username = user_input[CONF_USERNAME]
     password = user_input[CONF_PASSWORD]
@@ -61,8 +61,8 @@ class LcnFlowHandler(config_entries.ConfigFlow):
     async def async_step_user(self, user_input=None):
         """Handle a flow initiated by the user."""
         data_schema = OrderedDict()
-        data_schema[vol.Required(CONF_NAME, default="pchk")] = str
-        data_schema[vol.Required(CONF_HOST, default="192.168.2.41")] = str
+        data_schema[vol.Required(CONF_HOST, default="pchk")] = str
+        data_schema[vol.Required(CONF_IP_ADDRESS, default="192.168.2.41")] = str
         data_schema[vol.Required(CONF_PORT, default=4114)] = cv.positive_int
         data_schema[vol.Required(CONF_USERNAME, default="lcn")] = str
         data_schema[vol.Required(CONF_PASSWORD, default="lcn")] = str
@@ -77,7 +77,7 @@ class LcnFlowHandler(config_entries.ConfigFlow):
         try:
             # set a unique_id for this config flow
             # (alternatively return already existing entry)
-            entry = await self.async_set_unique_id(user_input[CONF_NAME])
+            entry = await self.async_set_unique_id(user_input[CONF_HOST])
             if entry:
                 return self.async_abort(reason="already_configured")
             await _validate_connection(self.hass, user_input)
@@ -89,19 +89,19 @@ class LcnFlowHandler(config_entries.ConfigFlow):
             return self.async_abort(reason="lcn_not_connected_error")
         except TimeoutError:
             _LOGGER.error(
-                'Connection to PCHK server "%s" failed.', user_input[CONF_NAME]
+                'Connection to PCHK server "%s" failed.', user_input[CONF_HOST]
             )
             return self.async_abort(reason="connection_timeout")
 
-        return self.async_create_entry(title=user_input[CONF_NAME], data=user_input)
+        return self.async_create_entry(title=user_input[CONF_HOST], data=user_input)
 
     async def async_step_import(self, info):
         """Import existing configuration from LCN."""
-        entry = await self.async_set_unique_id(info[CONF_NAME])
+        entry = await self.async_set_unique_id(info[CONF_HOST])
         if entry:
             await self.hass.config_entries.async_remove(entry.entry_id)
 
         return self.async_create_entry(
-            title="{} (import from configuration.yaml)".format(info[CONF_NAME]),
+            title="{} (import from configuration.yaml)".format(info[CONF_HOST]),
             data=info,
         )

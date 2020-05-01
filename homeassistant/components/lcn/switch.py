@@ -2,18 +2,10 @@
 import pypck
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import CONF_ADDRESS
+from homeassistant.const import CONF_ADDRESS, CONF_HOST, CONF_SWITCHES
 
 from . import LcnDevice
-from .const import (
-    CONF_ADDRESS_ID,
-    CONF_CONNECTIONS,
-    CONF_IS_GROUP,
-    CONF_OUTPUT,
-    CONF_SEGMENT_ID,
-    DATA_LCN,
-    OUTPUT_PORTS,
-)
+from .const import CONF_CONNECTIONS, CONF_OUTPUT, DATA_LCN, OUTPUT_PORTS
 from .helpers import get_connection
 
 
@@ -23,16 +15,12 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         return
 
     devices = []
-    connection_id = config_entry.data["name"]
-    connection = hass.data[DATA_LCN][CONF_CONNECTIONS][connection_id]
+    host_name = config_entry.data[CONF_HOST]
+    host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
 
-    for config in config_entry.data["switches"]:
-        addr = pypck.lcn_addr.LcnAddr(
-            config[CONF_SEGMENT_ID], config[CONF_ADDRESS_ID], config[CONF_IS_GROUP]
-        )
-        address_connection = connection.get_address_conn(addr)
-
-        # await async_register_lcn_device(hass, address_connection)
+    for config in config_entry.data[CONF_SWITCHES]:
+        addr = pypck.lcn_addr.LcnAddr(*config[CONF_ADDRESS])
+        address_connection = host.get_address_conn(addr)
 
         if config[CONF_OUTPUT] in OUTPUT_PORTS:
             device = LcnOutputSwitch(config, address_connection)
@@ -67,6 +55,11 @@ async def async_setup_platform(
         devices.append(device)
 
     async_add_entities(devices)
+
+
+# async def async_will_remove_from_hass(hass, entry):
+#     """Handle removal of LCN switch platform."""
+#     pass
 
 
 class LcnOutputSwitch(LcnDevice, SwitchEntity):
@@ -150,13 +143,13 @@ class LcnRelaySwitch(LcnDevice, SwitchEntity):
         super_unique_id = super().unique_id
         return super_unique_id + self.config[CONF_OUTPUT].lower()
 
-    # @property
-    # def device_info(self):
-    #     """Return device specific attributes."""
-    #     info = super().device_info
-    #     model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
-    #     info.update(model=model)
-    #     return info
+    @property
+    def device_info(self):
+        """Return device specific attributes."""
+        info = super().device_info
+        model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
+        info.update(model=model)
+        return info
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""

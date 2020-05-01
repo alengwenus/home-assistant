@@ -4,17 +4,11 @@ import re
 import pypck
 import voluptuous as vol
 
-from homeassistant.const import CONF_ADDRESS, CONF_NAME
+from homeassistant.const import CONF_ADDRESS, CONF_HOST, CONF_IP_ADDRESS, CONF_NAME
 from homeassistant.helpers import device_registry as dr
 
 from . import DATA_LCN, DOMAIN
-from .const import (
-    CONF_ADDRESS_ID,
-    CONF_CONNECTIONS,
-    CONF_IS_GROUP,
-    CONF_SEGMENT_ID,
-    DEFAULT_NAME,
-)
+from .const import CONF_CONNECTIONS, DEFAULT_NAME
 
 # Regex for address validation
 PATTERN_ADDRESS = re.compile(
@@ -22,60 +16,43 @@ PATTERN_ADDRESS = re.compile(
 )
 
 
-# def convert_to_config_entry_data
-
-
-def convert_to_config_entry_data(lcn_config):
-    """Convert the config dictionary to config_entry data."""
-    config = lcn_config.copy()
+def import_lcn_config(lcn_config):
+    """Convert lcn settings from configuration.yaml to config_entries data."""
     data = {}
-    connections = config.pop(CONF_CONNECTIONS)
-    for connection in connections:
-        connection_id = connection[CONF_NAME]
-        data[connection_id] = connection
+    for connection in lcn_config[CONF_CONNECTIONS]:
+        host = connection.copy()
+        host.update(
+            {CONF_HOST: connection[CONF_NAME], CONF_IP_ADDRESS: connection[CONF_HOST]}
+        )
+        data[host[CONF_HOST]] = host
 
-    for platform_name, platform_config in config.items():
+    for platform_name, platform_config in lcn_config.items():
+        if platform_name == CONF_CONNECTIONS:
+            continue
         for entity_config in platform_config:
-            # entity_address_config = entity_config.pop(CONF_ADDRESS)
-            address, connection_id = entity_config.pop(CONF_ADDRESS)
+            address, host_name = entity_config[CONF_ADDRESS]
+            entity_config[CONF_ADDRESS] = address
 
-            # address, connection_id = is_address(entity_address_config)
-            segment_id = address[0]
-            address_id = address[1]
-            address_is_group = address[2]
+            if host_name is None:
+                host_name = DEFAULT_NAME
 
-            entity_config.update(
-                {
-                    CONF_ADDRESS_ID: address_id,
-                    CONF_SEGMENT_ID: segment_id,
-                    CONF_IS_GROUP: address_is_group,
-                }
-            )
-
-            if connection_id is None:
-                connection_id = DEFAULT_NAME
-
-            if platform_name in data[connection_id]:
-                data[connection_id][platform_name].append(entity_config)
+            if platform_name in data[host_name]:
+                data[host_name][platform_name].append(entity_config)
             else:
-                data[connection_id][platform_name] = [entity_config]
+                data[host_name][platform_name] = [entity_config]
 
-    config_entries_data = [config_entry_data for config_entry_data in data.values()]
+    config_entries_data = data.values()
     return config_entries_data
 
 
 async def get_address_connections_from_config_entry(hass, config_entry):
     """Get all address_connections for given config_entry."""
     address_connections = set()
-    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.data[CONF_NAME]]
+    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.data[CONF_HOST]]
     for entity_configs in config_entry.data.values():
         if isinstance(entity_configs, list):
             for entity_config in entity_configs:
-                addr = pypck.lcn_addr.LcnAddr(
-                    entity_config[CONF_SEGMENT_ID],
-                    entity_config[CONF_ADDRESS_ID],
-                    entity_config[CONF_IS_GROUP],
-                )
+                addr = pypck.lcn_addr.LcnAddr(*entity_config[CONF_ADDRESS])
                 address_connection = lcn_connection.get_address_conn(addr)
                 address_connections.add(address_connection)
                 if not address_connection.is_group():
@@ -85,18 +62,18 @@ async def get_address_connections_from_config_entry(hass, config_entry):
 
 def address_repr(address_connection):
     """Give a representation of the hardware address."""
-    connection_id = address_connection.conn.connection_id
+    # host_name = address_connection.conn.connection_id
     address_type = "g" if address_connection.is_group() else "m"
     segment_id = address_connection.get_seg_id()
     address_id = address_connection.get_id()
-    return f"{connection_id}.{address_type}{segment_id:03d}{address_id:03d}"
+    return f"{address_type}{segment_id:03d}{address_id:03d}"
 
 
 async def async_register_lcn_host_device(hass, config_entry):
     """Register LCN host for given config_entry."""
     device_registry = await dr.async_get_registry(hass)
-    connection_id = config_entry.data[CONF_NAME]
-    identifiers = {(DOMAIN, connection_id)}
+    host_name = config_entry.data[CONF_NAME]
+    identifiers = {(DOMAIN, host_name)}
     device = device_registry.async_get_device(identifiers, set())
     if device:  # update device properties if already in registry
         return
@@ -105,7 +82,7 @@ async def async_register_lcn_host_device(hass, config_entry):
             config_entry_id=config_entry.entry_id,
             identifiers=identifiers,
             manufacturer="Issendorff",
-            name=f"{connection_id}",
+            name=f"{host_name}",
             model="PCHK",
         )
 
@@ -116,8 +93,8 @@ async def async_register_lcn_address_devices(hass, config_entry, address_connect
     The name of all given address_connections is collected and the devices
     are updated.
     """
-    connection_id = config_entry.data[CONF_NAME]
-    host_identifier = (DOMAIN, connection_id)
+    host_name = config_entry.data[CONF_NAME]
+    host_identifier = (DOMAIN, host_name)
     device_registry = await dr.async_get_registry(hass)
     # host_device = device_registry.async_get_device({host_identifier}, set())
     # devices_temp = list(device_registry.devices)
@@ -134,8 +111,8 @@ async def async_register_lcn_address_devices(hass, config_entry, address_connect
             # get group info
             device_data.update(
                 name=(
-                    f"Group  {address_connection.get_id():d} "
-                    f"({address_repr(address_connection).lower()})"
+                    f"Group  {address_connection.get_id():d}"
+                    f" ({address_repr(address_connection).lower()})"
                 ),
                 model="group",
             )
@@ -143,9 +120,10 @@ async def async_register_lcn_address_devices(hass, config_entry, address_connect
             # get module info
             await address_connection.serial_known
             address_name = await address_connection.request_name()
+            identifiers.add((DOMAIN, address_connection.hardware_serial,))
             device_data.update(
                 name=(
-                    f"{address_name} " f"({address_repr(address_connection).lower()})"
+                    f"{address_name}" f" ({address_repr(address_connection).lower()})"
                 ),
                 model="module",  # f'0x{address_connection.hw_type:02X}',
                 sw_version=f"{address_connection.software_serial:06X}",
@@ -171,38 +149,38 @@ async def async_register_lcn_devices(hass, config_entry):
     await async_register_lcn_address_devices(hass, config_entry, address_connections)
 
 
-def get_connection(connections, connection_id=None):
+def get_connection(hosts, host_name=None):
     """Return the connection object from list."""
-    if connection_id is None:
-        connection = connections[0]
+    if host_name is None:
+        host = hosts[0]
     else:
-        for connection in connections:
-            if connection.connection_id == connection_id:
+        for host in hosts:
+            if host.host_name == host_name:
                 break
         else:
-            raise ValueError("Unknown connection_id.")
-    return connection
+            raise ValueError("Unknown host_name.")
+    return host
 
 
-def has_unique_connection_names(connections):
+def has_unique_host_names(hosts):
     """Validate that all connection names are unique.
 
     Use 'pchk' as default connection_name (or add a numeric suffix if
     pchk' is already in use.
     """
     suffix = 0
-    for connection in connections:
-        connection_name = connection.get(CONF_NAME)
-        if connection_name is None:
+    for host in hosts:
+        host_name = host.get(CONF_NAME)
+        if host_name is None:
             if suffix == 0:
-                connection[CONF_NAME] = DEFAULT_NAME
+                host[CONF_NAME] = DEFAULT_NAME
             else:
-                connection[CONF_NAME] = f"{DEFAULT_NAME}{suffix:d}"
+                host[CONF_NAME] = f"{DEFAULT_NAME}{suffix:d}"
             suffix += 1
 
     schema = vol.Schema(vol.Unique())
-    schema([connection.get(CONF_NAME) for connection in connections])
-    return connections
+    schema([host.get(CONF_NAME) for host in hosts])
+    return hosts
 
 
 def is_address(value):

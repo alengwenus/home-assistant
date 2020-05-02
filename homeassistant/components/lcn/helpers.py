@@ -7,13 +7,23 @@ import voluptuous as vol
 from homeassistant.const import CONF_ADDRESS, CONF_HOST, CONF_IP_ADDRESS, CONF_NAME
 from homeassistant.helpers import device_registry as dr
 
-from . import DATA_LCN, DOMAIN
-from .const import CONF_CONNECTIONS, DEFAULT_NAME
+from .const import CONF_CONNECTIONS, CONF_PLATFORMS, DATA_LCN, DEFAULT_NAME, DOMAIN
 
 # Regex for address validation
 PATTERN_ADDRESS = re.compile(
     "^((?P<conn_id>\\w+)\\.)?s?(?P<seg_id>\\d+)\\.(?P<type>m|g)?(?P<id>\\d+)$"
 )
+
+
+platform_lookup = {
+    "binary_sensors": "binary_sensor",
+    "climates": "climate",
+    "covers": "cover",
+    "lights": "light",
+    "scenses": "scene",
+    "sensors": "sensor",
+    "switches": "switch",
+}
 
 
 def import_lcn_config(lcn_config):
@@ -25,6 +35,7 @@ def import_lcn_config(lcn_config):
             {CONF_HOST: connection[CONF_NAME], CONF_IP_ADDRESS: connection[CONF_HOST]}
         )
         data[host[CONF_HOST]] = host
+        data[host[CONF_HOST]][CONF_PLATFORMS] = {}
 
     for platform_name, platform_config in lcn_config.items():
         if platform_name == CONF_CONNECTIONS:
@@ -36,10 +47,14 @@ def import_lcn_config(lcn_config):
             if host_name is None:
                 host_name = DEFAULT_NAME
 
-            if platform_name in data[host_name]:
-                data[host_name][platform_name].append(entity_config)
+            if platform_lookup[platform_name] in data[host_name][CONF_PLATFORMS]:
+                data[host_name][CONF_PLATFORMS][platform_lookup[platform_name]].append(
+                    entity_config
+                )
             else:
-                data[host_name][platform_name] = [entity_config]
+                data[host_name][CONF_PLATFORMS][platform_lookup[platform_name]] = [
+                    entity_config
+                ]
 
     config_entries_data = data.values()
     return config_entries_data
@@ -49,14 +64,13 @@ async def get_address_connections_from_config_entry(hass, config_entry):
     """Get all address_connections for given config_entry."""
     address_connections = set()
     lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.data[CONF_HOST]]
-    for entity_configs in config_entry.data.values():
-        if isinstance(entity_configs, list):
-            for entity_config in entity_configs:
-                addr = pypck.lcn_addr.LcnAddr(*entity_config[CONF_ADDRESS])
-                address_connection = lcn_connection.get_address_conn(addr)
-                address_connections.add(address_connection)
-                if not address_connection.is_group():
-                    await address_connection.serial_known
+    for entity_configs in config_entry.data[CONF_PLATFORMS].values():
+        for entity_config in entity_configs:
+            addr = pypck.lcn_addr.LcnAddr(*entity_config[CONF_ADDRESS])
+            address_connection = lcn_connection.get_address_conn(addr)
+            address_connections.add(address_connection)
+            if not address_connection.is_group():
+                await address_connection.serial_known
     return address_connections
 
 
@@ -72,7 +86,7 @@ def address_repr(address_connection):
 async def async_register_lcn_host_device(hass, config_entry):
     """Register LCN host for given config_entry."""
     device_registry = await dr.async_get_registry(hass)
-    host_name = config_entry.data[CONF_NAME]
+    host_name = config_entry.data[CONF_HOST]
     identifiers = {(DOMAIN, host_name)}
     device = device_registry.async_get_device(identifiers, set())
     if device:  # update device properties if already in registry
@@ -93,7 +107,7 @@ async def async_register_lcn_address_devices(hass, config_entry, address_connect
     The name of all given address_connections is collected and the devices
     are updated.
     """
-    host_name = config_entry.data[CONF_NAME]
+    host_name = config_entry.data[CONF_HOST]
     host_identifier = (DOMAIN, host_name)
     device_registry = await dr.async_get_registry(hass)
     # host_device = device_registry.async_get_device({host_identifier}, set())
@@ -107,12 +121,12 @@ async def async_register_lcn_address_devices(hass, config_entry, address_connect
 
     for address_connection in address_connections:
         identifiers = {(DOMAIN, address_repr(address_connection))}
+        address_name = f"Group  {address_connection.get_id():d}"
         if address_connection.is_group():
             # get group info
             device_data.update(
                 name=(
-                    f"Group  {address_connection.get_id():d}"
-                    f" ({address_repr(address_connection).lower()})"
+                    f"{address_name}" f" ({address_repr(address_connection).lower()})"
                 ),
                 model="group",
             )

@@ -275,7 +275,6 @@ async def async_setup_entry(hass, config_entry):
 
         # register LCN host, modules and groups in device registry
         await hass.async_create_task(async_register_lcn_devices(hass, config_entry))
-
         # forward config_entry to platforms
         hass.async_add_job(
             hass.config_entries.async_forward_entry_setup(config_entry, "switch")

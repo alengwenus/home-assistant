@@ -3,24 +3,56 @@
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
-from homeassistant.const import CONF_HOST, CONF_IP_ADDRESS, CONF_NAME, CONF_PORT
+from homeassistant.const import (
+    CONF_ADDRESS,
+    CONF_HOST,
+    CONF_IP_ADDRESS,
+    CONF_NAME,
+    CONF_PORT,
+)
 from homeassistant.core import callback
 
 from .const import CONF_PLATFORMS, DOMAIN
 
-# from .helpers import address_repr
-
-
 TYPE = "type"
 ID = "id"
 ATTR_HOST = "host"
+ATTR_SEGMENT_ID = "segment_id"
+ATTR_ADDRESS_ID = "address_id"
+ATTR_IS_GROUP = "is_group"
 
 
 def convert_config_entry(config_entry):
     """Convert the config entry to a format which can be transferred via websocket."""
-    for platform_name, platform in config_entry.data[CONF_PLATFORMS].items():
-        pass
-    # config = {}
+    config = {}
+    for platform_name, entity_configs in config_entry.data[CONF_PLATFORMS].items():
+        for entity_config in entity_configs:
+            entity_config_copy = entity_config.copy()
+            address = tuple(entity_config_copy.pop(CONF_ADDRESS))
+
+            if address not in config:
+                config[address] = {}
+
+            config[address].update(
+                {
+                    ATTR_SEGMENT_ID: address[0],
+                    ATTR_ADDRESS_ID: address[1],
+                    ATTR_IS_GROUP: address[2],
+                }
+            )
+
+            if CONF_PLATFORMS not in config[address]:
+                config[address][CONF_PLATFORMS] = {}
+
+            if platform_name not in config[address][CONF_PLATFORMS]:
+                config[address][CONF_PLATFORMS][platform_name] = []
+
+            config[address][CONF_PLATFORMS][platform_name].append(entity_config_copy)
+
+    devices_config = []
+    for device_config in config.values():
+        devices_config.append(device_config)
+    return devices_config
 
 
 @websocket_api.require_admin
@@ -53,10 +85,8 @@ async def websocket_get_config(hass, connection, msg):
         if config_entry.data[CONF_HOST] == msg[ATTR_HOST]:
             break
 
-    # config = convert_config_entry(config_entry)
-
-    config_temp = []
-    connection.send_result(msg[ID], config_temp)
+    config = convert_config_entry(config_entry)
+    connection.send_result(msg[ID], config)
 
 
 @callback

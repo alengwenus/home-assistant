@@ -163,17 +163,17 @@ async def async_register_lcn_devices(hass, config_entry):
     await async_register_lcn_address_devices(hass, config_entry, address_connections)
 
 
-def get_connection(hosts, host_name=None):
-    """Return the connection object from list."""
-    if host_name is None:
-        host = hosts[0]
-    else:
-        for host in hosts:
-            if host.host_name == host_name:
-                break
-        else:
-            raise ValueError("Unknown host_name.")
-    return host
+# def get_connection(hosts, host_name=None):
+#     """Return the connection object from list."""
+#     if host_name is None:
+#         host = hosts[0]
+#     else:
+#         for host in hosts:
+#             if host.host_name == host_name:
+#                 break
+#         else:
+#             raise ValueError("Unknown host_name.")
+#     return host
 
 
 def has_unique_host_names(hosts):

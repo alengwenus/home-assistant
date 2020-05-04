@@ -4,6 +4,7 @@ import logging
 import pypck
 import voluptuous as vol
 
+# from homeassistant.helpers.discovery import async_load_platform
 from homeassistant import config_entries
 from homeassistant.components.climate import DEFAULT_MAX_TEMP, DEFAULT_MIN_TEMP
 from homeassistant.const import (
@@ -24,7 +25,6 @@ from homeassistant.const import (
     TEMP_FAHRENHEIT,
 )
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
 from . import websocket_api as wsapi
@@ -71,21 +71,10 @@ from .helpers import (
     import_lcn_config,
     is_address,
 )
-from .services import (
-    DynText,
-    Led,
-    LockKeys,
-    LockRegulator,
-    OutputAbs,
-    OutputRel,
-    OutputToggle,
-    Pck,
-    Relays,
-    SendKeys,
-    VarAbs,
-    VarRel,
-    VarReset,
-)
+
+# from .services import (DynText, Led, LockKeys, LockRegulator, OutputAbs,
+#                        OutputRel, OutputToggle, Pck, Relays, SendKeys, VarAbs,
+#                        VarRel, VarReset)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -322,77 +311,77 @@ async def async_setup(hass, config):
         )
     return True
 
-    conf_connections = config[DOMAIN][CONF_CONNECTIONS]
-    connections = []
-    for conf_connection in conf_connections:
-        connection_name = conf_connection.get(CONF_NAME)
+    # conf_connections = config[DOMAIN][CONF_CONNECTIONS]
+    # connections = []
+    # for conf_connection in conf_connections:
+    #     connection_name = conf_connection.get(CONF_NAME)
 
-        settings = {
-            "SK_NUM_TRIES": conf_connection[CONF_SK_NUM_TRIES],
-            "DIM_MODE": pypck.lcn_defs.OutputPortDimMode[
-                conf_connection[CONF_DIM_MODE]
-            ],
-        }
+    #     settings = {
+    #         "SK_NUM_TRIES": conf_connection[CONF_SK_NUM_TRIES],
+    #         "DIM_MODE": pypck.lcn_defs.OutputPortDimMode[
+    #             conf_connection[CONF_DIM_MODE]
+    #         ],
+    #     }
 
-        connection = pypck.connection.PchkConnectionManager(
-            hass.loop,
-            conf_connection[CONF_HOST],
-            conf_connection[CONF_PORT],
-            conf_connection[CONF_USERNAME],
-            conf_connection[CONF_PASSWORD],
-            settings=settings,
-            connection_id=connection_name,
-        )
+    #     connection = pypck.connection.PchkConnectionManager(
+    #         hass.loop,
+    #         conf_connection[CONF_HOST],
+    #         conf_connection[CONF_PORT],
+    #         conf_connection[CONF_USERNAME],
+    #         conf_connection[CONF_PASSWORD],
+    #         settings=settings,
+    #         connection_id=connection_name,
+    #     )
 
-        try:
-            # establish connection to PCHK server
-            await hass.async_create_task(connection.async_connect(timeout=15))
-            connections.append(connection)
-            _LOGGER.info('LCN connected to "%s"', connection_name)
-        except TimeoutError:
-            _LOGGER.error('Connection to PCHK server "%s" failed', connection_name)
-            return False
+    #     try:
+    #         # establish connection to PCHK server
+    #         await hass.async_create_task(connection.async_connect(timeout=15))
+    #         connections.append(connection)
+    #         _LOGGER.info('LCN connected to "%s"', connection_name)
+    #     except TimeoutError:
+    #         _LOGGER.error('Connection to PCHK server "%s" failed.', connection_name)
+    #         return False
 
-    hass.data[DATA_LCN][CONF_CONNECTIONS] = connections
+    # hass.data[DATA_LCN][CONF_CONNECTIONS] = connections
 
-    # load platforms
-    for component, conf_key in (
-        ("binary_sensor", CONF_BINARY_SENSORS),
-        ("climate", CONF_CLIMATES),
-        ("cover", CONF_COVERS),
-        ("light", CONF_LIGHTS),
-        ("scene", CONF_SCENES),
-        ("sensor", CONF_SENSORS),
-        ("switch", CONF_SWITCHES),
-    ):
-        if conf_key in config[DOMAIN]:
-            hass.async_create_task(
-                async_load_platform(
-                    hass, component, DOMAIN, config[DOMAIN][conf_key], config
-                )
-            )
+    # # load platforms
+    # for component, conf_key in (
+    #     ("binary_sensor", CONF_BINARY_SENSORS),
+    #     ("climate", CONF_CLIMATES),
+    #     ("cover", CONF_COVERS),
+    #     ("light", CONF_LIGHTS),
+    #     ("scene", CONF_SCENES),
+    #     ("sensor", CONF_SENSORS),
+    #     ("switch", CONF_SWITCHES),
+    # ):
+    #     if conf_key in config[DOMAIN]:
+    #         hass.async_create_task(
+    #             async_load_platform(
+    #                 hass, component, DOMAIN, config[DOMAIN][conf_key], config
+    #             )
+    #         )
 
-    # register service calls
-    for service_name, service in (
-        ("output_abs", OutputAbs),
-        ("output_rel", OutputRel),
-        ("output_toggle", OutputToggle),
-        ("relays", Relays),
-        ("var_abs", VarAbs),
-        ("var_reset", VarReset),
-        ("var_rel", VarRel),
-        ("lock_regulator", LockRegulator),
-        ("led", Led),
-        ("send_keys", SendKeys),
-        ("lock_keys", LockKeys),
-        ("dyn_text", DynText),
-        ("pck", Pck),
-    ):
-        hass.services.async_register(
-            DOMAIN, service_name, service(hass), service.schema
-        )
+    # # register service calls
+    # for service_name, service in (
+    #     ("output_abs", OutputAbs),
+    #     ("output_rel", OutputRel),
+    #     ("output_toggle", OutputToggle),
+    #     ("relays", Relays),
+    #     ("var_abs", VarAbs),
+    #     ("var_reset", VarReset),
+    #     ("var_rel", VarRel),
+    #     ("lock_regulator", LockRegulator),
+    #     ("led", Led),
+    #     ("send_keys", SendKeys),
+    #     ("lock_keys", LockKeys),
+    #     ("dyn_text", DynText),
+    #     ("pck", Pck),
+    # ):
+    #     hass.services.async_register(
+    #         DOMAIN, service_name, service(hass), service.schema
+    #     )
 
-    return True
+    # return True
 
 
 class LcnDevice(Entity):

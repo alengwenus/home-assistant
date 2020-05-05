@@ -1,13 +1,22 @@
 """Helpers for LCN component."""
+import logging
 import re
 
 import pypck
 import voluptuous as vol
 
-from homeassistant.const import CONF_ADDRESS, CONF_HOST, CONF_IP_ADDRESS, CONF_NAME
+from homeassistant.const import (
+    CONF_ADDRESS,
+    CONF_ENTITIES,
+    CONF_HOST,
+    CONF_IP_ADDRESS,
+    CONF_NAME,
+)
 from homeassistant.helpers import device_registry as dr
 
-from .const import CONF_CONNECTIONS, CONF_PLATFORMS, DATA_LCN, DEFAULT_NAME, DOMAIN
+from .const import CONF_CONNECTIONS, DATA_LCN, DEFAULT_NAME, DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 # Regex for address validation
 PATTERN_ADDRESS = re.compile(
@@ -26,6 +35,35 @@ platform_lookup = {
 }
 
 
+def generate_unique_id(
+    host_name,
+    address=None,
+    platform_config=None,  # (platform_name, platform_data)
+    domain=DOMAIN,
+):
+    """Generate a unique_id from the given parameters."""
+    unique_id = f"{domain}.{host_name}"
+    if address:
+        is_group = "g" if address[2] else "m"
+        unique_id += f".{is_group}{address[0]:03d}{address[1]:03d}"
+        if platform_config:
+            platform_name, platform_data = platform_config
+            if platform_name in ["switch", "light"]:
+                resource = f'{platform_data["output"]}'.lower()
+            elif platform_name in ["binary_sensor", "sensor"]:
+                resource = f'{platform_data["source"]}'.lower()
+            elif platform_name == "cover":
+                resource = f'{platform_data["motor"]}'.lower()
+            elif platform_name == "climate":
+                resource = f'{platform_data["setpoint"]}.{platform_data["source"]}'
+            elif platform_name == "scenes":
+                resource = f'{platform_data["register"]}.{platform_data["scene"]}'
+            else:
+                raise ValueError("Unknown platform.")
+            unique_id += f".{platform_name}.{resource}"
+    return unique_id
+
+
 def import_lcn_config(lcn_config):
     """Convert lcn settings from configuration.yaml to config_entries data."""
     data = {}
@@ -35,43 +73,40 @@ def import_lcn_config(lcn_config):
             {CONF_HOST: connection[CONF_NAME], CONF_IP_ADDRESS: connection[CONF_HOST]}
         )
         data[host[CONF_HOST]] = host
-        data[host[CONF_HOST]][CONF_PLATFORMS] = {}
+        data[host[CONF_HOST]][CONF_ENTITIES] = []
+
+    unique_ids = []
 
     for platform_name, platform_config in lcn_config.items():
         if platform_name == CONF_CONNECTIONS:
             continue
         for entity_config in platform_config:
-            address, host_name = entity_config[CONF_ADDRESS]
-            entity_config[CONF_ADDRESS] = address
+            address, host_name = entity_config.pop(CONF_ADDRESS)
 
             if host_name is None:
                 host_name = DEFAULT_NAME
 
-            if platform_lookup[platform_name] in data[host_name][CONF_PLATFORMS]:
-                data[host_name][CONF_PLATFORMS][platform_lookup[platform_name]].append(
-                    entity_config
-                )
-            else:
-                data[host_name][CONF_PLATFORMS][platform_lookup[platform_name]] = [
-                    entity_config
-                ]
+            entity_name = entity_config.pop(CONF_NAME)
+            unique_id = generate_unique_id(
+                host_name, address, (platform_lookup[platform_name], entity_config)
+            )
+            if unique_id in unique_ids:
+                _LOGGER.warning("Unique_id %s already defined.", unique_id)
+                continue
+            unique_ids.append(unique_id)
+
+            data[host_name][CONF_ENTITIES].append(
+                {
+                    "unique_id": unique_id,
+                    CONF_ADDRESS: address,
+                    CONF_NAME: entity_name,
+                    "platform": platform_lookup[platform_name],
+                    "platform_data": entity_config,
+                }
+            )
 
     config_entries_data = data.values()
     return config_entries_data
-
-
-async def get_address_connections_from_config_entry(hass, config_entry):
-    """Get all address_connections for given config_entry."""
-    address_connections = set()
-    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.data[CONF_HOST]]
-    for entity_configs in config_entry.data[CONF_PLATFORMS].values():
-        for entity_config in entity_configs:
-            addr = pypck.lcn_addr.LcnAddr(*entity_config[CONF_ADDRESS])
-            address_connection = lcn_connection.get_address_conn(addr)
-            address_connections.add(address_connection)
-            if not address_connection.is_group():
-                await address_connection.serial_known
-    return address_connections
 
 
 def address_repr(address_connection):
@@ -83,11 +118,25 @@ def address_repr(address_connection):
     return f"{address_type}{segment_id:03d}{address_id:03d}"
 
 
+async def get_address_connections_from_config_entry(hass, config_entry):
+    """Get all address_connections for given config_entry."""
+    address_connections = set()
+    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.data[CONF_HOST]]
+    for entity_config in config_entry.data[CONF_ENTITIES]:
+        addr = pypck.lcn_addr.LcnAddr(*entity_config[CONF_ADDRESS])
+        address_connection = lcn_connection.get_address_conn(addr)
+        address_connections.add(address_connection)
+        if not address_connection.is_group():
+            await address_connection.serial_known
+    return address_connections
+
+
 async def async_register_lcn_host_device(hass, config_entry):
     """Register LCN host for given config_entry."""
     device_registry = await dr.async_get_registry(hass)
     host_name = config_entry.data[CONF_HOST]
-    identifiers = {(DOMAIN, host_name)}
+    unique_host_id = generate_unique_id(host_name)
+    identifiers = {(DOMAIN, unique_host_id)}
     device = device_registry.async_get_device(identifiers, set())
     if device:  # update device properties if already in registry
         return
@@ -95,7 +144,7 @@ async def async_register_lcn_host_device(hass, config_entry):
         device = device_registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
             identifiers=identifiers,
-            manufacturer="Issendorff",
+            manufacturer="LCN",
             name=f"{host_name}",
             model="PCHK",
         )
@@ -108,27 +157,32 @@ async def async_register_lcn_address_devices(hass, config_entry, address_connect
     are updated.
     """
     host_name = config_entry.data[CONF_HOST]
-    host_identifier = (DOMAIN, host_name)
+    unique_host_id = generate_unique_id(host_name)
+    host_identifier = (DOMAIN, unique_host_id)
     device_registry = await dr.async_get_registry(hass)
     # host_device = device_registry.async_get_device({host_identifier}, set())
     # devices_temp = list(device_registry.devices)
 
     device_data = dict(
         config_entry_id=config_entry.entry_id,
-        manufacturer="Issendorff",
+        manufacturer="LCN",
         via_device=host_identifier,
     )
 
     for address_connection in address_connections:
-        identifiers = {(DOMAIN, address_repr(address_connection))}
-        address_name = f"Group  {address_connection.get_id():d}"
+        address = (
+            address_connection.get_seg_id(),
+            address_connection.get_id(),
+            address_connection.is_group(),
+        )
+        unqiue_device_id = generate_unique_id(host_name, address)
+        identifiers = {(DOMAIN, unqiue_device_id)}
         if address_connection.is_group():
             # get group info
+            address_name = f"Group  {address_connection.get_id():d}"
             device_data.update(
-                name=(
-                    f"{address_name}" f" ({address_repr(address_connection).lower()})"
-                ),
-                model="group",
+                name=(f"{address_name}"),
+                model=f"group ({unqiue_device_id.split('.', 2)[2]})",
             )
         else:
             # get module info
@@ -136,10 +190,9 @@ async def async_register_lcn_address_devices(hass, config_entry, address_connect
             address_name = await address_connection.request_name()
             identifiers.add((DOMAIN, address_connection.hardware_serial,))
             device_data.update(
-                name=(
-                    f"{address_name}" f" ({address_repr(address_connection).lower()})"
-                ),
-                model="module",  # f'0x{address_connection.hw_type:02X}',
+                name=(f"{address_name}"),
+                model=f"module ({unqiue_device_id.split('.', 2)[2]})",
+                # model = f'0x{address_connection.hw_type:02X}',
                 sw_version=f"{address_connection.software_serial:06X}",
             )
 

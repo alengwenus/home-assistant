@@ -264,6 +264,7 @@ async def async_setup_entry(hass, config_entry):
 
         # register LCN host, modules and groups in device registry
         await hass.async_create_task(async_register_lcn_devices(hass, config_entry))
+
         # forward config_entry to platforms
         hass.async_add_job(
             hass.config_entries.async_forward_entry_setup(config_entry, "switch")
@@ -392,29 +393,36 @@ class LcnDevice(Entity):
         self.config = config
         self.address_connection = address_connection
         self._name = config[CONF_NAME]
+        self._unique_id = config["unique_id"]
 
-    @property
-    def host(self):
-        """Return the connection identifier of related PCHK connection."""
-        return self.address_connection.conn.connection_id
+    # @property
+    # def host(self):
+    #     """Return the connection identifier of related PCHK connection."""
+    #     return self.address_connection.conn.connection_id
+
+    # @property
+    # def unique_id(self):
+    #     """Return a unique ID."""
+    #     return f"{DOMAIN}.{self.host}.{address_repr(self.address_connection)}."
 
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return f"{self.host}{address_repr(self.address_connection)}."
+        return self._unique_id
 
     @property
     def device_info(self):
         """Return device specific attributes."""
         if self.address_connection.is_group():
-            hw_type = "group"
+            hw_type = f"group ({self.unique_id.split('.', 2)[2]})"
         else:
-            hw_type = "module"  # f'0x{self.address_connection.hw_type:02X}'
+            hw_type = f"module ({self.unique_id.split('.', 2)[2]})"
+            # hw_type = f'0x{self.address_connection.hw_type:02X}'
 
         return {
             "identifiers": {(DOMAIN, self.unique_id)},
             "name": self.name,
-            "manufacturer": "Issendorff",
+            "manufacturer": "LCN",
             "model": hw_type,
             "via_device": (DOMAIN, address_repr(self.address_connection)),
         }

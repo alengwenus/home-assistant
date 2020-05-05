@@ -2,30 +2,32 @@
 import pypck
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import CONF_ADDRESS, CONF_HOST
+from homeassistant.const import CONF_ADDRESS, CONF_ENTITIES, CONF_HOST
 
 from . import LcnDevice
-from .const import CONF_CONNECTIONS, CONF_OUTPUT, CONF_PLATFORMS, DATA_LCN, OUTPUT_PORTS
+from .const import CONF_CONNECTIONS, CONF_OUTPUT, DATA_LCN, OUTPUT_PORTS
 
 # from .helpers import get_connection
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up LCN switch platform from config_entry."""
-    if "switch" not in config_entry.data[CONF_PLATFORMS]:
-        return
+    # if "switch" not in config_entry.data[CONF_PLATFORMS]:
+    #     return
     devices = []
     host_name = config_entry.data[CONF_HOST]
     host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
 
-    for config in config_entry.data[CONF_PLATFORMS]["switch"]:
-        addr = pypck.lcn_addr.LcnAddr(*config[CONF_ADDRESS])
-        address_connection = host.get_address_conn(addr)
+    for entity_config in config_entry.data[CONF_ENTITIES]:
+        if entity_config["platform"] != "switch":
+            continue
 
-        if config[CONF_OUTPUT] in OUTPUT_PORTS:
-            device = LcnOutputSwitch(config, address_connection)
+        addr = pypck.lcn_addr.LcnAddr(*entity_config[CONF_ADDRESS])
+        address_connection = host.get_address_conn(addr)
+        if entity_config["platform_data"][CONF_OUTPUT] in OUTPUT_PORTS:
+            device = LcnOutputSwitch(entity_config, address_connection)
         else:  # in RELAY_PORTS
-            device = LcnRelaySwitch(config, address_connection)
+            device = LcnRelaySwitch(entity_config, address_connection)
 
         devices.append(device)
 
@@ -69,21 +71,21 @@ class LcnOutputSwitch(LcnDevice, SwitchEntity):
         """Initialize the LCN switch."""
         super().__init__(config, address_connection)
 
-        self.output = pypck.lcn_defs.OutputPort[config[CONF_OUTPUT]]
+        self.output = pypck.lcn_defs.OutputPort[config["platform_data"][CONF_OUTPUT]]
 
         self._is_on = None
 
-    @property
-    def unique_id(self):
-        """Return a unique ID."""
-        super_unique_id = super().unique_id
-        return super_unique_id + self.config[CONF_OUTPUT].lower()
+    # @property
+    # def unique_id(self):
+    #     """Return a unique ID."""
+    #     super_unique_id = super().unique_id
+    #     return super_unique_id + 'switch.' + self.config['platform_data'][CONF_OUTPUT].lower()
 
     # @property
     # def device_info(self):
     #     """Return device specific attributes."""
     #     info = super().device_info
-    #     model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
+    #     model = f"{info['model']} ({self.config['platform_data'][CONF_OUTPUT].lower()})"
     #     info.update(model=model)
     #     return info
 
@@ -133,23 +135,23 @@ class LcnRelaySwitch(LcnDevice, SwitchEntity):
         """Initialize the LCN switch."""
         super().__init__(config, address_connection)
 
-        self.output = pypck.lcn_defs.RelayPort[config[CONF_OUTPUT]]
+        self.output = pypck.lcn_defs.RelayPort[config["platform_data"][CONF_OUTPUT]]
 
         self._is_on = None
 
-    @property
-    def unique_id(self):
-        """Return a unique ID."""
-        super_unique_id = super().unique_id
-        return super_unique_id + self.config[CONF_OUTPUT].lower()
+    # @property
+    # def unique_id(self):
+    #     """Return a unique ID."""
+    #     super_unique_id = super().unique_id
+    #     return super_unique_id + 'switch.' + self.config['platform_data'][CONF_OUTPUT].lower()
 
-    @property
-    def device_info(self):
-        """Return device specific attributes."""
-        info = super().device_info
-        model = f"{info['model']} ({self.config[CONF_OUTPUT].lower()})"
-        info.update(model=model)
-        return info
+    # @property
+    # def device_info(self):
+    #     """Return device specific attributes."""
+    #     info = super().device_info
+    #     model = f"{info['model']} ({self.config['platform_data'][CONF_OUTPUT].lower()})"
+    #     info.update(model=model)
+    #     return info
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""

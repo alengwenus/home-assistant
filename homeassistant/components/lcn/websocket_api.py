@@ -5,6 +5,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.const import (
     CONF_ADDRESS,
+    CONF_ENTITIES,
     CONF_HOST,
     CONF_IP_ADDRESS,
     CONF_NAME,
@@ -13,12 +14,14 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
 
-from .const import CONF_PLATFORMS, DOMAIN
+from .const import DOMAIN
+from .helpers import generate_unique_id
 
 TYPE = "type"
 ID = "id"
 ATTR_HOST = "host"
 ATTR_NAME = "name"
+ATTR_UNIQUE_ID = "unique_id"
 ATTR_SEGMENT_ID = "segment_id"
 ATTR_ADDRESS_ID = "address_id"
 ATTR_IS_GROUP = "is_group"
@@ -32,35 +35,38 @@ async def convert_config_entry(hass, config_entry):
     config = {}
     device_registry = await dr.async_get_registry(hass)
 
-    for platform_name, entity_configs in config_entry.data[CONF_PLATFORMS].items():
-        for entity_config in entity_configs:
-            entity_config_copy = entity_config.copy()
-            address = tuple(entity_config_copy.pop(CONF_ADDRESS))
-            entity_name = entity_config_copy.pop(ATTR_NAME)
+    for entity_config in config_entry.data[CONF_ENTITIES]:
+        platform_name = entity_config["platform"]
 
-            if address not in config:
-                config[address] = {}
+        address = tuple(entity_config[CONF_ADDRESS])
+        entity_name = entity_config[ATTR_NAME]
+        unique_entity_id = entity_config["unique_id"]
 
-                is_group = "g" if address[2] else "m"
-                identifiers = {(DOMAIN, f"{is_group}{address[0]:03d}{address[1]:03d}")}
-                lcn_device = device_registry.async_get_device(identifiers, set())
-                config[address].update(
-                    {
-                        ATTR_NAME: lcn_device.name,
-                        ATTR_SEGMENT_ID: address[0],
-                        ATTR_ADDRESS_ID: address[1],
-                        ATTR_IS_GROUP: address[2],
-                        ATTR_ENTITIES: [],
-                    }
-                )
+        if address not in config:
+            config[address] = {}
 
-            config[address][ATTR_ENTITIES].append(
+            unique_device_id = generate_unique_id(config_entry.data[CONF_HOST], address)
+            identifiers = {(DOMAIN, unique_device_id)}
+            lcn_device = device_registry.async_get_device(identifiers, set())
+            config[address].update(
                 {
-                    ATTR_NAME: entity_name,
-                    ATTR_PLATFORM: platform_name,
-                    ATTR_PLATFORM_DATA: entity_config_copy,
+                    ATTR_NAME: lcn_device.name,
+                    ATTR_UNIQUE_ID: unique_device_id,
+                    ATTR_SEGMENT_ID: address[0],
+                    ATTR_ADDRESS_ID: address[1],
+                    ATTR_IS_GROUP: address[2],
+                    ATTR_ENTITIES: [],
                 }
             )
+
+        config[address][ATTR_ENTITIES].append(
+            {
+                ATTR_NAME: entity_name,
+                ATTR_UNIQUE_ID: unique_entity_id,
+                ATTR_PLATFORM: platform_name,
+                ATTR_PLATFORM_DATA: entity_config["platform_data"],
+            }
+        )
 
     devices_config = []
     for device_config in config.values():

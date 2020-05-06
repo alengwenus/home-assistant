@@ -1,5 +1,7 @@
 """Web socket API for Local Control Network devices."""
 
+from operator import itemgetter
+
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
@@ -22,6 +24,7 @@ ID = "id"
 ATTR_HOST = "host"
 ATTR_NAME = "name"
 ATTR_UNIQUE_ID = "unique_id"
+ATTR_RESOURCE = "resource"
 ATTR_SEGMENT_ID = "segment_id"
 ATTR_ADDRESS_ID = "address_id"
 ATTR_IS_GROUP = "is_group"
@@ -41,6 +44,7 @@ async def convert_config_entry(hass, config_entry):
         address = tuple(entity_config[CONF_ADDRESS])
         entity_name = entity_config[ATTR_NAME]
         unique_entity_id = entity_config["unique_id"]
+        entity_resource = unique_entity_id.split(".", 4)[4]
 
         if address not in config:
             config[address] = {}
@@ -64,13 +68,20 @@ async def convert_config_entry(hass, config_entry):
                 ATTR_NAME: entity_name,
                 ATTR_UNIQUE_ID: unique_entity_id,
                 ATTR_PLATFORM: platform_name,
+                ATTR_RESOURCE: entity_resource,
                 ATTR_PLATFORM_DATA: entity_config["platform_data"],
             }
         )
 
-    devices_config = []
-    for device_config in config.values():
-        devices_config.append(device_config)
+    # cast devices_config to dict and sort
+    devices_config = sorted(
+        config.values(), key=itemgetter(ATTR_IS_GROUP, ATTR_SEGMENT_ID, ATTR_ADDRESS_ID)
+    )
+
+    # sort entities_config
+    for device_config in devices_config:
+        device_config[ATTR_ENTITIES].sort(key=itemgetter(ATTR_PLATFORM, ATTR_RESOURCE))
+
     return devices_config
 
 

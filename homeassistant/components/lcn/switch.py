@@ -2,10 +2,18 @@
 import pypck
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import CONF_ADDRESS, CONF_ENTITIES, CONF_HOST
+from homeassistant.const import CONF_DEVICES, CONF_ENTITIES, CONF_HOST
 
 from . import LcnDevice
-from .const import CONF_CONNECTIONS, CONF_OUTPUT, DATA_LCN, OUTPUT_PORTS
+from .const import (
+    CONF_ADDRESS_ID,
+    CONF_CONNECTIONS,
+    CONF_IS_GROUP,
+    CONF_OUTPUT,
+    CONF_SEGMENT_ID,
+    DATA_LCN,
+    OUTPUT_PORTS,
+)
 
 # from .helpers import get_connection
 
@@ -18,18 +26,21 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     host_name = config_entry.data[CONF_HOST]
     host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
 
-    for entity_config in config_entry.data[CONF_ENTITIES]:
-        if entity_config["platform"] != "switch":
-            continue
+    for device_config in config_entry.data[CONF_DEVICES]:
+        for entity_config in device_config[CONF_ENTITIES]:
+            if entity_config["platform"] == "switch":
+                addr = pypck.lcn_addr.LcnAddr(
+                    device_config[CONF_SEGMENT_ID],
+                    device_config[CONF_ADDRESS_ID],
+                    device_config[CONF_IS_GROUP],
+                )
+                device_connection = host.get_address_conn(addr)
+                if entity_config["platform_data"][CONF_OUTPUT] in OUTPUT_PORTS:
+                    device = LcnOutputSwitch(entity_config, device_connection)
+                else:  # in RELAY_PORTS
+                    device = LcnRelaySwitch(entity_config, device_connection)
 
-        addr = pypck.lcn_addr.LcnAddr(*entity_config[CONF_ADDRESS])
-        address_connection = host.get_address_conn(addr)
-        if entity_config["platform_data"][CONF_OUTPUT] in OUTPUT_PORTS:
-            device = LcnOutputSwitch(entity_config, address_connection)
-        else:  # in RELAY_PORTS
-            device = LcnRelaySwitch(entity_config, address_connection)
-
-        devices.append(device)
+                devices.append(device)
 
     async_add_devices(devices)
 

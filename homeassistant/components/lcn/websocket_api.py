@@ -7,6 +7,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.const import (
     CONF_ADDRESS,
+    CONF_DEVICES,
     CONF_ENTITIES,
     CONF_HOST,
     CONF_IP_ADDRESS,
@@ -16,7 +17,7 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
 
-from .const import DOMAIN
+from .const import CONF_CONNECTIONS, DATA_LCN, DOMAIN
 from .helpers import generate_unique_id
 
 TYPE = "type"
@@ -110,12 +111,50 @@ async def websocket_get_hosts(hass, connection, msg):
     {vol.Required(TYPE): "lcn/config", vol.Required(ATTR_HOST): str}
 )
 async def websocket_get_config(hass, connection, msg):
-    """Get LCN modules."""
+    """Get devices config."""
     for config_entry in hass.config_entries.async_entries(DOMAIN):
         if config_entry.data[CONF_HOST] == msg[ATTR_HOST]:
             break
 
+    connection.send_result(msg[ID], config_entry.data[CONF_DEVICES])
+
+
+@websocket_api.require_admin
+@websocket_api.async_response
+@websocket_api.websocket_command(
+    {vol.Required(TYPE): "lcn/devices/scan", vol.Required(ATTR_HOST): str}
+)
+async def websocket_scan_devices(hass, connection, msg):
+    """Scan for new devices."""
+    host_name = msg[ATTR_HOST]
+    for config_entry in hass.config_entries.async_entries(DOMAIN):
+        if config_entry.data[CONF_HOST] == host_name:
+            break
+
+    # create a set of all device addresses from config_entry
+    entity_addresses = {
+        tuple(entity[CONF_ADDRESS]) for entity in config_entry.data[ATTR_ENTITIES]
+    }
+
+    host_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
+    await host_connection.scan_modules()
+
+    for device_connection in host_connection.address_conns:
+        address = (
+            device_connection.get_seg_id(),
+            device_connection.get_id(),
+            device_connection.is_group(),
+        )
+
+        if address not in entity_addresses:
+            pass
+            # Problem!
+
+        # print(config_entry.data)
+
     config = await convert_config_entry(hass, config_entry)
+    print(config)
+
     connection.send_result(msg[ID], config)
 
 
@@ -124,3 +163,4 @@ def async_load_websocket_api(hass):
     """Set up the web socket API."""
     websocket_api.async_register_command(hass, websocket_get_hosts)
     websocket_api.async_register_command(hass, websocket_get_config)
+    websocket_api.async_register_command(hass, websocket_scan_devices)

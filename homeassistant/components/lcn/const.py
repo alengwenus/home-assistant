@@ -14,9 +14,9 @@ DOMAIN = "lcn"
 DATA_LCN = "lcn"
 DEFAULT_NAME = "pchk"
 
-# CONF_ADDRESS_ID = "address_id"
-# CONF_SEGMENT_ID = "segment_id"
-# CONF_IS_GROUP = "is_group"
+CONF_ADDRESS_ID = "address_id"
+CONF_SEGMENT_ID = "segment_id"
+CONF_IS_GROUP = "is_group"
 
 CONF_CONNECTIONS = "connections"
 CONF_PLATFORMS = "platforms"

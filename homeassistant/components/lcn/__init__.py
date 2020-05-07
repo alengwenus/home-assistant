@@ -67,6 +67,7 @@ from .const import (
 from .helpers import (
     address_repr,
     async_register_lcn_devices,
+    async_update_lcn_device_info,
     has_unique_host_names,
     import_lcn_config,
     is_address,
@@ -261,6 +262,9 @@ async def async_setup_entry(hass, config_entry):
         except TimeoutError:
             _LOGGER.warning('Connection to PCHK "%s" failed.', host)
             return False
+
+        # update config_entry with LCN device names
+        await hass.async_create_task(async_update_lcn_device_info(hass, config_entry))
 
         # register LCN host, modules and groups in device registry
         await hass.async_create_task(async_register_lcn_devices(hass, config_entry))

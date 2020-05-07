@@ -1,4 +1,5 @@
 """Helpers for LCN component."""
+import asyncio
 import logging
 import re
 
@@ -7,14 +8,28 @@ import voluptuous as vol
 
 from homeassistant.const import (
     CONF_ADDRESS,
+    CONF_DEVICES,
     CONF_ENTITIES,
     CONF_HOST,
     CONF_IP_ADDRESS,
     CONF_NAME,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_USERNAME,
 )
 from homeassistant.helpers import device_registry as dr
 
-from .const import CONF_CONNECTIONS, DATA_LCN, DEFAULT_NAME, DOMAIN
+from .const import (
+    CONF_ADDRESS_ID,
+    CONF_CONNECTIONS,
+    CONF_DIM_MODE,
+    CONF_IS_GROUP,
+    CONF_SEGMENT_ID,
+    CONF_SK_NUM_TRIES,
+    DATA_LCN,
+    DEFAULT_NAME,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +39,7 @@ PATTERN_ADDRESS = re.compile(
 )
 
 
-platform_lookup = {
+PLATFORM_LOOKUP = {
     "binary_sensors": "binary_sensor",
     "climates": "climate",
     "covers": "cover",
@@ -68,45 +83,105 @@ def import_lcn_config(lcn_config):
     """Convert lcn settings from configuration.yaml to config_entries data."""
     data = {}
     for connection in lcn_config[CONF_CONNECTIONS]:
-        host = connection.copy()
-        host.update(
-            {CONF_HOST: connection[CONF_NAME], CONF_IP_ADDRESS: connection[CONF_HOST]}
-        )
+        host = {
+            "unique_id": generate_unique_id(connection[CONF_NAME]),
+            CONF_HOST: connection[CONF_NAME],
+            CONF_IP_ADDRESS: connection[CONF_HOST],
+            CONF_PORT: connection[CONF_PORT],
+            CONF_USERNAME: connection[CONF_USERNAME],
+            CONF_PASSWORD: connection[CONF_PASSWORD],
+            CONF_SK_NUM_TRIES: connection[CONF_SK_NUM_TRIES],
+            CONF_DIM_MODE: connection[CONF_DIM_MODE],
+            CONF_DEVICES: [],
+        }
         data[host[CONF_HOST]] = host
-        data[host[CONF_HOST]][CONF_ENTITIES] = []
-
-    unique_ids = []
 
     for platform_name, platform_config in lcn_config.items():
         if platform_name == CONF_CONNECTIONS:
             continue
-        for entity_config in platform_config:
-            address, host_name = entity_config.pop(CONF_ADDRESS)
+        # loop over entities in configuration.yaml
+        for platform_data in platform_config:
+            # remove name and address from platform_data
+            entity_name = platform_data.pop(CONF_NAME)
+            address, host_name = platform_data.pop(CONF_ADDRESS)
 
             if host_name is None:
                 host_name = DEFAULT_NAME
 
-            entity_name = entity_config.pop(CONF_NAME)
-            unique_id = generate_unique_id(
-                host_name, address, (platform_lookup[platform_name], entity_config)
-            )
-            if unique_id in unique_ids:
-                _LOGGER.warning("Unique_id %s already defined.", unique_id)
-                continue
-            unique_ids.append(unique_id)
-
-            data[host_name][CONF_ENTITIES].append(
-                {
-                    "unique_id": unique_id,
-                    CONF_ADDRESS: address,
-                    CONF_NAME: entity_name,
-                    "platform": platform_lookup[platform_name],
-                    "platform_data": entity_config,
+            # check if we have a new device config
+            unique_device_id = generate_unique_id(host_name, address)
+            for device_config in data[host_name][CONF_DEVICES]:
+                if unique_device_id == device_config["unique_id"]:
+                    break
+            else:  # create new device_config
+                device_config = {
+                    "unique_id": unique_device_id,
+                    CONF_NAME: "",
+                    CONF_SEGMENT_ID: address[0],
+                    CONF_ADDRESS_ID: address[1],
+                    CONF_IS_GROUP: address[2],
+                    "hardware_serial": 0,
+                    "software_serial": 0,
+                    "hardware_type": 0,
+                    CONF_ENTITIES: [],
                 }
+
+                data[host_name][CONF_DEVICES].append(device_config)
+
+            # insert entity config
+            unique_entity_id = generate_unique_id(
+                host_name, address, (PLATFORM_LOOKUP[platform_name], platform_data)
             )
+            for entity_config in device_config[CONF_ENTITIES]:
+                if unique_entity_id == entity_config["unique_id"]:
+                    _LOGGER.warning("Unique_id %s already defined.", unique_entity_id)
+                    break
+            else:  # create new entity_config
+                entity_config = {
+                    "unique_id": unique_entity_id,
+                    CONF_NAME: entity_name,
+                    "resource": unique_entity_id.split(".", 3)[3],
+                    "platform": PLATFORM_LOOKUP[platform_name],
+                    "platform_data": platform_data.copy(),
+                }
+                device_config[CONF_ENTITIES].append(entity_config)
 
     config_entries_data = data.values()
     return config_entries_data
+
+
+async def async_update_lcn_device_info(hass, config_entry):
+    """Request device names from LCN modules and updates config_entry."""
+    host_name = config_entry.data[CONF_HOST]
+    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
+    for device_config in config_entry.data[CONF_DEVICES]:
+        if device_config[CONF_IS_GROUP]:
+            device_name = f"Group  {device_config[CONF_ADDRESS_ID]:d}"
+            device_hardware_serial = 0
+            device_software_serial = 0
+            device_hardware_type = 0
+        else:
+            addr = pypck.lcn_addr.LcnAddr(
+                device_config[CONF_SEGMENT_ID],
+                device_config[CONF_ADDRESS_ID],
+                device_config[CONF_IS_GROUP],
+            )
+            # get module info
+            device_connection = lcn_connection.get_address_conn(addr)
+            try:
+                await asyncio.wait_for(device_connection.serial_known, timeout=3)
+            except asyncio.TimeoutError:
+                continue
+
+            device_name = await device_connection.request_name()
+            device_hardware_serial = device_connection.hardware_serial
+            device_software_serial = device_connection.software_serial
+            device_hardware_type = device_connection.hw_type
+
+        device_config[CONF_NAME] = device_name
+        device_config["hardware_serial"] = device_hardware_serial
+        device_config["software_serial"] = device_software_serial
+        device_config["hardware_type"] = device_hardware_type
 
 
 def address_repr(address_connection):
@@ -121,9 +196,14 @@ def address_repr(address_connection):
 async def get_address_connections_from_config_entry(hass, config_entry):
     """Get all address_connections for given config_entry."""
     address_connections = set()
-    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.data[CONF_HOST]]
-    for entity_config in config_entry.data[CONF_ENTITIES]:
-        addr = pypck.lcn_addr.LcnAddr(*entity_config[CONF_ADDRESS])
+    host_name = config_entry.data[CONF_HOST]
+    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
+    for device_config in config_entry.data[CONF_DEVICES]:
+        addr = pypck.lcn_addr.LcnAddr(
+            device_config[CONF_SEGMENT_ID],
+            device_config[CONF_ADDRESS_ID],
+            device_config[CONF_IS_GROUP],
+        )
         address_connection = lcn_connection.get_address_conn(addr)
         address_connections.add(address_connection)
         if not address_connection.is_group():
@@ -135,7 +215,7 @@ async def async_register_lcn_host_device(hass, config_entry):
     """Register LCN host for given config_entry."""
     device_registry = await dr.async_get_registry(hass)
     host_name = config_entry.data[CONF_HOST]
-    unique_host_id = generate_unique_id(host_name)
+    unique_host_id = config_entry.data["unique_id"]
     identifiers = {(DOMAIN, unique_host_id)}
     device = device_registry.async_get_device(identifiers, set())
     if device:  # update device properties if already in registry
@@ -150,14 +230,13 @@ async def async_register_lcn_host_device(hass, config_entry):
         )
 
 
-async def async_register_lcn_address_devices(hass, config_entry, address_connections):
+async def async_register_lcn_address_devices(hass, config_entry):
     """Register LCN modules and groups defined in config_entry as devices.
 
     The name of all given address_connections is collected and the devices
     are updated.
     """
-    host_name = config_entry.data[CONF_HOST]
-    unique_host_id = generate_unique_id(host_name)
+    unique_host_id = config_entry.data["unique_id"]
     host_identifier = (DOMAIN, unique_host_id)
     device_registry = await dr.async_get_registry(hass)
     # host_device = device_registry.async_get_device({host_identifier}, set())
@@ -169,37 +248,25 @@ async def async_register_lcn_address_devices(hass, config_entry, address_connect
         via_device=host_identifier,
     )
 
-    for address_connection in address_connections:
-        address = (
-            address_connection.get_seg_id(),
-            address_connection.get_id(),
-            address_connection.is_group(),
-        )
-        unqiue_device_id = generate_unique_id(host_name, address)
-        identifiers = {(DOMAIN, unqiue_device_id)}
-        if address_connection.is_group():
+    for device_config in config_entry.data[CONF_DEVICES]:
+        unique_device_id = device_config["unique_id"]
+        device_name = device_config[CONF_NAME]
+        identifiers = {(DOMAIN, unique_device_id)}
+
+        if device_config[CONF_IS_GROUP]:
             # get group info
-            address_name = f"Group  {address_connection.get_id():d}"
-            device_data.update(
-                name=(f"{address_name}"),
-                model=f"group ({unqiue_device_id.split('.', 2)[2]})",
-            )
+            device_model = f"group ({unique_device_id.split('.', 2)[2]})"
         else:
             # get module info
-            await address_connection.serial_known
-            address_name = await address_connection.request_name()
-            identifiers.add((DOMAIN, address_connection.hardware_serial,))
-            device_data.update(
-                name=(f"{address_name}"),
-                model=f"module ({unqiue_device_id.split('.', 2)[2]})",
-                # model = f'0x{address_connection.hw_type:02X}',
-                sw_version=f"{address_connection.software_serial:06X}",
-            )
+            device_model = f"module ({unique_device_id.split('.', 2)[2]})"
+            device_data.update(sw_version=f"{device_config['software_serial']:06X}")
 
-        device_data.update(identifiers=identifiers)
+        device_data.update(
+            name=device_name, identifiers=identifiers, model=device_model
+        )
         device = device_registry.async_get_device(identifiers, set())
         if device:  # update device properties if already in registry
-            device_registry.async_update_device(device.id, name=address_name)
+            device_registry.async_update_device(device.id, name=device_name)
         else:
             device = device_registry.async_get_or_create(**device_data)
 
@@ -209,11 +276,8 @@ async def async_register_lcn_address_devices(hass, config_entry, address_connect
 
 async def async_register_lcn_devices(hass, config_entry):
     """Register LCN host and all devices for given config_entry."""
-    address_connections = await get_address_connections_from_config_entry(
-        hass, config_entry
-    )
     await async_register_lcn_host_device(hass, config_entry)
-    await async_register_lcn_address_devices(hass, config_entry, address_connections)
+    await async_register_lcn_address_devices(hass, config_entry)
 
 
 # def get_connection(hosts, host_name=None):

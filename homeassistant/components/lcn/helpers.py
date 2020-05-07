@@ -140,7 +140,7 @@ def import_lcn_config(lcn_config):
                 entity_config = {
                     "unique_id": unique_entity_id,
                     CONF_NAME: entity_name,
-                    "resource": unique_entity_id.split(".", 3)[3],
+                    "resource": unique_entity_id.split(".", 4)[4],
                     "platform": PLATFORM_LOOKUP[platform_name],
                     "platform_data": platform_data.copy(),
                 }

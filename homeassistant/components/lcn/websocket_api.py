@@ -1,12 +1,12 @@
 """Web socket API for Local Control Network devices."""
 
+import asyncio
 from operator import itemgetter
 
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
 from homeassistant.const import (
-    CONF_ADDRESS,
     CONF_DEVICES,
     CONF_ENTITIES,
     CONF_HOST,
@@ -15,10 +15,16 @@ from homeassistant.const import (
     CONF_PORT,
 )
 from homeassistant.core import callback
-from homeassistant.helpers import device_registry as dr
 
-from .const import CONF_CONNECTIONS, DATA_LCN, DOMAIN
-from .helpers import generate_unique_id
+from .const import (
+    CONF_ADDRESS_ID,
+    CONF_CONNECTIONS,
+    CONF_IS_GROUP,
+    CONF_SEGMENT_ID,
+    DATA_LCN,
+    DOMAIN,
+)
+from .helpers import async_register_lcn_address_devices, generate_unique_id
 
 TYPE = "type"
 ID = "id"
@@ -34,56 +40,15 @@ ATTR_PLATFORM = "platform"
 ATTR_PLATFORM_DATA = "platform_data"
 
 
-async def convert_config_entry(hass, config_entry):
-    """Convert the config entry to a format which can be transferred via websocket."""
-    config = {}
-    device_registry = await dr.async_get_registry(hass)
-
-    for entity_config in config_entry.data[CONF_ENTITIES]:
-        platform_name = entity_config["platform"]
-
-        address = tuple(entity_config[CONF_ADDRESS])
-        entity_name = entity_config[ATTR_NAME]
-        unique_entity_id = entity_config["unique_id"]
-        entity_resource = unique_entity_id.split(".", 4)[4]
-
-        if address not in config:
-            config[address] = {}
-
-            unique_device_id = generate_unique_id(config_entry.data[CONF_HOST], address)
-            identifiers = {(DOMAIN, unique_device_id)}
-            lcn_device = device_registry.async_get_device(identifiers, set())
-            config[address].update(
-                {
-                    ATTR_NAME: lcn_device.name,
-                    ATTR_UNIQUE_ID: unique_device_id,
-                    ATTR_SEGMENT_ID: address[0],
-                    ATTR_ADDRESS_ID: address[1],
-                    ATTR_IS_GROUP: address[2],
-                    ATTR_ENTITIES: [],
-                }
-            )
-
-        config[address][ATTR_ENTITIES].append(
-            {
-                ATTR_NAME: entity_name,
-                ATTR_UNIQUE_ID: unique_entity_id,
-                ATTR_PLATFORM: platform_name,
-                ATTR_RESOURCE: entity_resource,
-                ATTR_PLATFORM_DATA: entity_config["platform_data"],
-            }
-        )
-
-    # cast devices_config to dict and sort
-    devices_config = sorted(
-        config.values(), key=itemgetter(ATTR_IS_GROUP, ATTR_SEGMENT_ID, ATTR_ADDRESS_ID)
+def sort_lcn_config_entry(config_entry):
+    """Sort given config_entry."""
+    config_entry.data[CONF_DEVICES].sort(
+        key=itemgetter(ATTR_IS_GROUP, ATTR_SEGMENT_ID, ATTR_ADDRESS_ID)
     )
 
     # sort entities_config
-    for device_config in devices_config:
+    for device_config in config_entry.data[CONF_DEVICES]:
         device_config[ATTR_ENTITIES].sort(key=itemgetter(ATTR_PLATFORM, ATTR_RESOURCE))
-
-    return devices_config
 
 
 @websocket_api.require_admin
@@ -116,6 +81,7 @@ async def websocket_get_config(hass, connection, msg):
         if config_entry.data[CONF_HOST] == msg[ATTR_HOST]:
             break
 
+    sort_lcn_config_entry(config_entry)
     connection.send_result(msg[ID], config_entry.data[CONF_DEVICES])
 
 
@@ -131,31 +97,71 @@ async def websocket_scan_devices(hass, connection, msg):
         if config_entry.data[CONF_HOST] == host_name:
             break
 
-    # create a set of all device addresses from config_entry
-    entity_addresses = {
-        tuple(entity[CONF_ADDRESS]) for entity in config_entry.data[ATTR_ENTITIES]
-    }
-
     host_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     await host_connection.scan_modules()
 
-    for device_connection in host_connection.address_conns:
-        address = (
-            device_connection.get_seg_id(),
-            device_connection.get_id(),
-            device_connection.is_group(),
+    lock = asyncio.Lock()
+    await asyncio.gather(
+        *[
+            async_create_or_update_device(device_connection, config_entry, lock)
+            for device_connection in host_connection.address_conns.values()
+            if not device_connection.is_group()
+        ]
+    )
+
+    # sort config_entry
+    sort_lcn_config_entry(config_entry)
+
+    # schedule config_entry for save
+    hass.config_entries.async_update_entry(config_entry)
+
+    # create new devices
+    await hass.async_create_task(async_register_lcn_address_devices(hass, config_entry))
+
+    connection.send_result(msg[ID], config_entry.data[CONF_DEVICES])
+
+
+async def async_create_or_update_device(device_connection, config_entry, lock):
+    """Create or update device in config_entry according to given device_connection."""
+    await device_connection.serial_known
+    device_name = await device_connection.request_name()
+
+    async with lock:  # prevent simultaneous access to config_entry
+        for device in config_entry.data[CONF_DEVICES]:
+            if (
+                device[CONF_SEGMENT_ID] == device_connection.get_seg_id()
+                and device[CONF_ADDRESS_ID] == device_connection.get_id()
+                and device[CONF_IS_GROUP] == device_connection.is_group()
+            ):
+                break  # device already in config_entry
+        else:
+            # create new device_entry
+            unique_device_id = generate_unique_id(
+                config_entry.data[CONF_HOST],
+                (
+                    device_connection.get_seg_id(),
+                    device_connection.get_id(),
+                    device_connection.is_group(),
+                ),
+            )
+            device = {
+                "unique_id": unique_device_id,
+                CONF_SEGMENT_ID: device_connection.get_seg_id(),
+                CONF_ADDRESS_ID: device_connection.get_id(),
+                CONF_IS_GROUP: device_connection.is_group(),
+                CONF_ENTITIES: [],
+            }
+            config_entry.data[CONF_DEVICES].append(device)
+
+        # update device_entry
+        device.update(
+            {
+                CONF_NAME: device_name,
+                "hardware_serial": device_connection.hardware_serial,
+                "software_serial": device_connection.software_serial,
+                "hardware_type": device_connection.hw_type,
+            }
         )
-
-        if address not in entity_addresses:
-            pass
-            # Problem!
-
-        # print(config_entry.data)
-
-    config = await convert_config_entry(hass, config_entry)
-    print(config)
-
-    connection.send_result(msg[ID], config)
 
 
 @callback

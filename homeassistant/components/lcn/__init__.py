@@ -283,12 +283,15 @@ async def async_setup_entry(hass, config_entry):
 async def async_unload_entry(hass, config_entry):
     """Close connection to PCHK host represented by config_entry."""
     # forward unloading to platforms
-    await hass.config_entries.async_forward_entry_setup(config_entry, "switch")
+    await hass.config_entries.async_forward_entry_unload(config_entry, "switch")
 
     host = config_entry.data[CONF_HOST]
     if host in hass.data[DATA_LCN][CONF_CONNECTIONS]:
         connection = hass.data[DATA_LCN][CONF_CONNECTIONS].pop(host)
         await connection.async_close()
+
+    # TODO: remove device for host!!!
+
     return True
 
 
@@ -314,57 +317,6 @@ async def async_setup(hass, config):
                 data=config_entry_data,
             )
         )
-    return True
-
-    # conf_connections = config[DOMAIN][CONF_CONNECTIONS]
-    # connections = []
-    # for conf_connection in conf_connections:
-    #     connection_name = conf_connection.get(CONF_NAME)
-
-    #     settings = {
-    #         "SK_NUM_TRIES": conf_connection[CONF_SK_NUM_TRIES],
-    #         "DIM_MODE": pypck.lcn_defs.OutputPortDimMode[
-    #             conf_connection[CONF_DIM_MODE]
-    #         ],
-    #     }
-
-    #     connection = pypck.connection.PchkConnectionManager(
-    #         hass.loop,
-    #         conf_connection[CONF_HOST],
-    #         conf_connection[CONF_PORT],
-    #         conf_connection[CONF_USERNAME],
-    #         conf_connection[CONF_PASSWORD],
-    #         settings=settings,
-    #         connection_id=connection_name,
-    #     )
-
-    #     try:
-    #         # establish connection to PCHK server
-    #         await hass.async_create_task(connection.async_connect(timeout=15))
-    #         connections.append(connection)
-    #         _LOGGER.info('LCN connected to "%s"', connection_name)
-    #     except TimeoutError:
-    #         _LOGGER.error('Connection to PCHK server "%s" failed.', connection_name)
-    #         return False
-
-    # hass.data[DATA_LCN][CONF_CONNECTIONS] = connections
-
-    # # load platforms
-    # for component, conf_key in (
-    #     ("binary_sensor", CONF_BINARY_SENSORS),
-    #     ("climate", CONF_CLIMATES),
-    #     ("cover", CONF_COVERS),
-    #     ("light", CONF_LIGHTS),
-    #     ("scene", CONF_SCENES),
-    #     ("sensor", CONF_SENSORS),
-    #     ("switch", CONF_SWITCHES),
-    # ):
-    #     if conf_key in config[DOMAIN]:
-    #         hass.async_create_task(
-    #             async_load_platform(
-    #                 hass, component, DOMAIN, config[DOMAIN][conf_key], config
-    #             )
-    #         )
 
     # # register service calls
     # for service_name, service in (
@@ -386,7 +338,7 @@ async def async_setup(hass, config):
     #         DOMAIN, service_name, service(hass), service.schema
     #     )
 
-    # return True
+    return True
 
 
 class LcnDevice(Entity):
@@ -398,16 +350,6 @@ class LcnDevice(Entity):
         self.address_connection = address_connection
         self._name = config[CONF_NAME]
         self._unique_id = config["unique_id"]
-
-    # @property
-    # def host(self):
-    #     """Return the connection identifier of related PCHK connection."""
-    #     return self.address_connection.conn.connection_id
-
-    # @property
-    # def unique_id(self):
-    #     """Return a unique ID."""
-    #     return f"{DOMAIN}.{self.host}.{address_repr(self.address_connection)}."
 
     @property
     def unique_id(self):

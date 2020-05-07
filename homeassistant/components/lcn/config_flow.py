@@ -7,6 +7,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import (
+    CONF_DEVICES,
     CONF_HOST,
     CONF_IP_ADDRESS,
     CONF_PASSWORD,
@@ -16,6 +17,7 @@ from homeassistant.const import (
 import homeassistant.helpers.config_validation as cv
 
 from .const import CONF_DIM_MODE, CONF_SK_NUM_TRIES, DIM_MODES, DOMAIN
+from .helpers import generate_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,6 +94,9 @@ class LcnFlowHandler(config_entries.ConfigFlow):
                 'Connection to PCHK server "%s" failed.', user_input[CONF_HOST]
             )
             return self.async_abort(reason="connection_timeout")
+
+        user_input["unique_id"] = generate_unique_id(user_input[CONF_HOST])
+        user_input[CONF_DEVICES] = []
 
         return self.async_create_entry(title=user_input[CONF_HOST], data=user_input)
 

@@ -15,8 +15,6 @@ from .const import (
     OUTPUT_PORTS,
 )
 
-# from .helpers import get_connection
-
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up LCN switch platform from config_entry."""
@@ -45,36 +43,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     async_add_devices(devices)
 
 
-# async def async_setup_platform(
-#     hass, hass_config, async_add_entities, discovery_info=None
-# ):
-#     """Set up the LCN switch platform."""
-#     if discovery_info is None:
-#         return
-
-#     devices = []
-#     for config in discovery_info:
-#         address, connection_id = config[CONF_ADDRESS]
-#         addr = pypck.lcn_addr.LcnAddr(*address)
-#         connections = hass.data[DATA_LCN][CONF_CONNECTIONS]
-#         connection = get_connection(connections, connection_id)
-#         address_connection = connection.get_address_conn(addr)
-
-#         if config[CONF_OUTPUT] in OUTPUT_PORTS:
-#             device = LcnOutputSwitch(config, address_connection)
-#         else:  # in RELAY_PORTS
-#             device = LcnRelaySwitch(config, address_connection)
-
-#         devices.append(device)
-
-#     async_add_entities(devices)
-
-
-# async def async_will_remove_from_hass(hass, entry):
-#     """Handle removal of LCN switch platform."""
-#     pass
-
-
 class LcnOutputSwitch(LcnDevice, SwitchEntity):
     """Representation of a LCN switch for output ports."""
 
@@ -85,20 +53,6 @@ class LcnOutputSwitch(LcnDevice, SwitchEntity):
         self.output = pypck.lcn_defs.OutputPort[config["platform_data"][CONF_OUTPUT]]
 
         self._is_on = None
-
-    # @property
-    # def unique_id(self):
-    #     """Return a unique ID."""
-    #     super_unique_id = super().unique_id
-    #     return super_unique_id + 'switch.' + self.config['platform_data'][CONF_OUTPUT].lower()
-
-    # @property
-    # def device_info(self):
-    #     """Return device specific attributes."""
-    #     info = super().device_info
-    #     model = f"{info['model']} ({self.config['platform_data'][CONF_OUTPUT].lower()})"
-    #     info.update(model=model)
-    #     return info
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
@@ -149,20 +103,6 @@ class LcnRelaySwitch(LcnDevice, SwitchEntity):
         self.output = pypck.lcn_defs.RelayPort[config["platform_data"][CONF_OUTPUT]]
 
         self._is_on = None
-
-    # @property
-    # def unique_id(self):
-    #     """Return a unique ID."""
-    #     super_unique_id = super().unique_id
-    #     return super_unique_id + 'switch.' + self.config['platform_data'][CONF_OUTPUT].lower()
-
-    # @property
-    # def device_info(self):
-    #     """Return device specific attributes."""
-    #     info = super().device_info
-    #     model = f"{info['model']} ({self.config['platform_data'][CONF_OUTPUT].lower()})"
-    #     info.update(model=model)
-    #     return info
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""

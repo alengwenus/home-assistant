@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.const import (
     CONF_DEVICES,
+    CONF_DOMAIN,
     CONF_ENTITIES,
     CONF_HOST,
     CONF_IP_ADDRESS,
@@ -15,6 +16,7 @@ from homeassistant.const import (
     CONF_PORT,
 )
 from homeassistant.core import callback
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     CONF_ADDRESS_ID,
@@ -25,9 +27,6 @@ from .const import (
     DOMAIN,
 )
 from .helpers import async_register_lcn_address_devices, generate_unique_id
-
-# from homeassistant.helpers import entity_registry as er
-
 
 TYPE = "type"
 ID = "id"
@@ -52,6 +51,34 @@ def sort_lcn_config_entry(config_entry):
     # sort entities_config
     for device_config in config_entry.data[CONF_DEVICES]:
         device_config[ATTR_ENTITIES].sort(key=itemgetter(ATTR_PLATFORM, ATTR_RESOURCE))
+
+
+def get_config_entry(hass, host, config_entries):
+    """Return the config_entry with given host."""
+    return next(
+        config_entry
+        for config_entry in hass.config_entries.async_entries(DOMAIN)
+        if config_entry.data[CONF_HOST] == host
+    )
+
+
+def get_device_config(unique_device_id, config_entry):
+    """Return the configuration for given unique_device_id."""
+    return next(
+        config
+        for config in config_entry.data[CONF_DEVICES]
+        if config[ATTR_UNIQUE_ID] == unique_device_id
+    )
+
+
+def get_entity_config(unique_entity_id, config_entry):
+    """Return unqiue_device_id and entity_config for given unique_entity_id."""
+    for device_config in config_entry.data[CONF_DEVICES]:
+        for entity_config in device_config[CONF_ENTITIES]:
+            if entity_config[ATTR_UNIQUE_ID] == unique_entity_id:
+                return entity_config, device_config[ATTR_UNIQUE_ID]
+    else:
+        return None
 
 
 @websocket_api.require_admin
@@ -130,29 +157,44 @@ async def websocket_scan_devices(hass, connection, msg):
     {
         vol.Required(TYPE): "lcn/entity/delete",
         vol.Required(ATTR_HOST): str,
-        vol.Required(ATTR_PLATFORM): str,
+        vol.Required(CONF_DOMAIN): str,
         vol.Required(ATTR_UNIQUE_ID): str,
     }
 )
 async def websocket_delete_entity(hass, connection, msg):
-    """Get devices config."""
-    for config_entry in hass.config_entries.async_entries(DOMAIN):
-        if config_entry.data[CONF_HOST] == msg[ATTR_HOST]:
-            break
+    """Delete a device."""
 
-    print(msg)
+    config_entry = get_config_entry(
+        hass, msg[ATTR_HOST], hass.config_entries.async_entries(DOMAIN)
+    )
 
-    # entity_registry = await er.async_get_registry(hass)
-    # entity = entity_registry.async_get_entity_id(DOMAIN, msg[ATTR_PLATFORM], msg[ATTR_UNIQUE_ID])
-    # print(entity)
+    entity_config, unique_device_id = get_entity_config(
+        msg[ATTR_UNIQUE_ID], config_entry
+    )
 
-    # # sort config_entry
-    # sort_lcn_config_entry(config_entry)
+    device_config = get_device_config(unique_device_id, config_entry)
 
-    # # schedule config_entry for save
-    # hass.config_entries.async_update_entry(config_entry)
+    # platform = entity_config[ATTR_PLATFORM]
+    platform = "lcn"
 
-    connection.send_result(msg[ID], config_entry.data[CONF_DEVICES])
+    entity_registry = await er.async_get_registry(hass)
+
+    entity_id = entity_registry.async_get_entity_id(
+        msg[CONF_DOMAIN], platform, msg[ATTR_UNIQUE_ID]
+    )
+
+    if entity_id:
+        entity_registry.async_remove(entity_id)
+        device_config[CONF_ENTITIES].remove(entity_config)
+
+    # sort config_entry
+    sort_lcn_config_entry(config_entry)
+
+    # schedule config_entry for save
+    hass.config_entries.async_update_entry(config_entry)
+
+    # return the device config, not all devices !!!
+    connection.send_result(msg[ID])
 
 
 async def async_create_or_update_device(device_connection, config_entry, lock):

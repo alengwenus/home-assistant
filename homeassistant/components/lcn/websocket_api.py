@@ -16,7 +16,7 @@ from homeassistant.const import (
     CONF_PORT,
 )
 from homeassistant.core import callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr
 
 from .const import (
     CONF_ADDRESS_ID,
@@ -174,17 +174,12 @@ async def websocket_delete_entity(hass, connection, msg):
 
     device_config = get_device_config(unique_device_id, config_entry)
 
-    # platform = entity_config[ATTR_PLATFORM]
-    platform = "lcn"
+    device_registry = await dr.async_get_registry(hass)
+    identifiers = {(DOMAIN, msg[ATTR_UNIQUE_ID])}
+    device = device_registry.async_get_device(identifiers, set())
 
-    entity_registry = await er.async_get_registry(hass)
-
-    entity_id = entity_registry.async_get_entity_id(
-        msg[CONF_DOMAIN], platform, msg[ATTR_UNIQUE_ID]
-    )
-
-    if entity_id:
-        entity_registry.async_remove(entity_id)
+    if device:
+        device_registry.async_remove_device(device.id)
         device_config[CONF_ENTITIES].remove(entity_config)
 
     # sort config_entry

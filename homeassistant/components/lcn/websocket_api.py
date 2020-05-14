@@ -8,7 +8,6 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.const import (
     CONF_DEVICES,
-    CONF_DOMAIN,
     CONF_ENTITIES,
     CONF_HOST,
     CONF_IP_ADDRESS,
@@ -155,32 +154,20 @@ async def websocket_scan_devices(hass, connection, msg):
 @websocket_api.async_response
 @websocket_api.websocket_command(
     {
-        vol.Required(TYPE): "lcn/entity/delete",
+        vol.Required(TYPE): "lcn/device/delete",
         vol.Required(ATTR_HOST): str,
-        vol.Required(CONF_DOMAIN): str,
         vol.Required(ATTR_UNIQUE_ID): str,
     }
 )
-async def websocket_delete_entity(hass, connection, msg):
+async def websocket_delete_device(hass, connection, msg):
     """Delete a device."""
 
     config_entry = get_config_entry(
         hass, msg[ATTR_HOST], hass.config_entries.async_entries(DOMAIN)
     )
 
-    entity_config, unique_device_id = get_entity_config(
-        msg[ATTR_UNIQUE_ID], config_entry
-    )
-
-    device_config = get_device_config(unique_device_id, config_entry)
-
     device_registry = await dr.async_get_registry(hass)
-    identifiers = {(DOMAIN, msg[ATTR_UNIQUE_ID])}
-    device = device_registry.async_get_device(identifiers, set())
-
-    if device:
-        device_registry.async_remove_device(device.id)
-        device_config[CONF_ENTITIES].remove(entity_config)
+    delete_device(config_entry, device_registry, msg[ATTR_UNIQUE_ID])
 
     # sort config_entry
     sort_lcn_config_entry(config_entry)
@@ -190,6 +177,71 @@ async def websocket_delete_entity(hass, connection, msg):
 
     # return the device config, not all devices !!!
     connection.send_result(msg[ID])
+
+
+@websocket_api.require_admin
+@websocket_api.async_response
+@websocket_api.websocket_command(
+    {
+        vol.Required(TYPE): "lcn/entity/delete",
+        vol.Required(ATTR_HOST): str,
+        vol.Required(ATTR_UNIQUE_ID): str,
+    }
+)
+async def websocket_delete_entity(hass, connection, msg):
+    """Delete an entity."""
+
+    config_entry = get_config_entry(
+        hass, msg[ATTR_HOST], hass.config_entries.async_entries(DOMAIN)
+    )
+
+    device_registry = await dr.async_get_registry(hass)
+    delete_entity(config_entry, device_registry, msg[ATTR_UNIQUE_ID])
+
+    # sort config_entry
+    sort_lcn_config_entry(config_entry)
+
+    # schedule config_entry for save
+    hass.config_entries.async_update_entry(config_entry)
+
+    # return the device config, not all devices !!!
+    connection.send_result(msg[ID])
+
+
+def delete_device(config_entry, device_registry, unique_id):
+    """Delete a device from config_entry and device_registry."""
+    device_config = get_device_config(unique_id, config_entry)
+
+    # delete all child devices (and entities)
+    unique_entity_ids = [
+        entity_config[ATTR_UNIQUE_ID] for entity_config in device_config[CONF_ENTITIES]
+    ]
+
+    for unique_entity_id in unique_entity_ids:
+        delete_entity(config_entry, device_registry, unique_entity_id)
+
+    # now delete module/group device
+    identifiers = {(DOMAIN, unique_id)}
+    device = device_registry.async_get_device(identifiers, set())
+
+    if device:
+        device_registry.async_remove_device(device.id)
+        config_entry.data[CONF_DEVICES].remove(device_config)
+
+
+def delete_entity(config_entry, device_registry, unique_id):
+    """Delete an entity from config_entry and device_registry/entity_registry."""
+    entity_config, unique_device_id = get_entity_config(unique_id, config_entry)
+
+    device_config = get_device_config(unique_device_id, config_entry)
+
+    identifiers = {(DOMAIN, unique_id)}
+    entity_device = device_registry.async_get_device(identifiers, set())
+
+    if entity_device:
+        # removes entity from device_registry and from entity_registry
+        device_registry.async_remove_device(entity_device.id)
+        device_config[CONF_ENTITIES].remove(entity_config)
 
 
 async def async_create_or_update_device(device_connection, config_entry, lock):
@@ -241,4 +293,5 @@ def async_load_websocket_api(hass):
     websocket_api.async_register_command(hass, websocket_get_hosts)
     websocket_api.async_register_command(hass, websocket_get_config)
     websocket_api.async_register_command(hass, websocket_scan_devices)
+    websocket_api.async_register_command(hass, websocket_delete_device)
     websocket_api.async_register_command(hass, websocket_delete_entity)

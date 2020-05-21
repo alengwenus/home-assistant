@@ -93,6 +93,7 @@ def import_lcn_config(lcn_config):
             CONF_SK_NUM_TRIES: connection[CONF_SK_NUM_TRIES],
             CONF_DIM_MODE: connection[CONF_DIM_MODE],
             CONF_DEVICES: [],
+            CONF_ENTITIES: [],
         }
         data[host[CONF_HOST]] = host
 
@@ -123,7 +124,6 @@ def import_lcn_config(lcn_config):
                     "hardware_serial": 0,
                     "software_serial": 0,
                     "hardware_type": 0,
-                    CONF_ENTITIES: [],
                 }
 
                 data[host_name][CONF_DEVICES].append(device_config)
@@ -132,19 +132,20 @@ def import_lcn_config(lcn_config):
             unique_entity_id = generate_unique_id(
                 host_name, address, (PLATFORM_LOOKUP[platform_name], platform_data)
             )
-            for entity_config in device_config[CONF_ENTITIES]:
+            for entity_config in data[host_name][CONF_ENTITIES]:
                 if unique_entity_id == entity_config["unique_id"]:
                     _LOGGER.warning("Unique_id %s already defined.", unique_entity_id)
                     break
             else:  # create new entity_config
                 entity_config = {
                     "unique_id": unique_entity_id,
+                    "unique_device_id": unique_device_id,
                     CONF_NAME: entity_name,
                     "resource": unique_entity_id.split(".", 4)[4],
                     "platform": PLATFORM_LOOKUP[platform_name],
                     "platform_data": platform_data.copy(),
                 }
-                device_config[CONF_ENTITIES].append(entity_config)
+                data[host_name][CONF_ENTITIES].append(entity_config)
 
     config_entries_data = data.values()
     return config_entries_data
@@ -182,6 +183,33 @@ async def async_update_lcn_device_info(hass, config_entry):
         device_config["hardware_serial"] = device_hardware_serial
         device_config["software_serial"] = device_software_serial
         device_config["hardware_type"] = device_hardware_type
+
+
+def get_config_entry(hass, host):
+    """Return the config_entry with given host."""
+    return next(
+        config_entry
+        for config_entry in hass.config_entries.async_entries(DOMAIN)
+        if config_entry.data[CONF_HOST] == host
+    )
+
+
+def get_device_config(unique_device_id, config_entry):
+    """Return the configuration for given unique_device_id."""
+    return next(
+        device_config
+        for device_config in config_entry.data[CONF_DEVICES]
+        if device_config["unique_id"] == unique_device_id
+    )
+
+
+def get_entity_config(unique_entity_id, config_entry):
+    """Return the configuration for given unique_entity_id."""
+    return next(
+        entity_config
+        for entity_config in config_entry.data[CONF_ENTITIES]
+        if entity_config["unique_id"] == unique_entity_id
+    )
 
 
 def address_repr(address_connection):

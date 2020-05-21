@@ -25,7 +25,13 @@ from .const import (
     DATA_LCN,
     DOMAIN,
 )
-from .helpers import async_register_lcn_address_devices, generate_unique_id
+from .helpers import (
+    async_register_lcn_address_devices,
+    generate_unique_id,
+    get_config_entry,
+    get_device_config,
+    get_entity_config,
+)
 
 TYPE = "type"
 ID = "id"
@@ -43,41 +49,13 @@ ATTR_PLATFORM_DATA = "platform_data"
 
 def sort_lcn_config_entry(config_entry):
     """Sort given config_entry."""
+    # sort devices_config
     config_entry.data[CONF_DEVICES].sort(
         key=itemgetter(ATTR_IS_GROUP, ATTR_SEGMENT_ID, ATTR_ADDRESS_ID)
     )
 
     # sort entities_config
-    for device_config in config_entry.data[CONF_DEVICES]:
-        device_config[ATTR_ENTITIES].sort(key=itemgetter(ATTR_PLATFORM, ATTR_RESOURCE))
-
-
-def get_config_entry(hass, host, config_entries):
-    """Return the config_entry with given host."""
-    return next(
-        config_entry
-        for config_entry in hass.config_entries.async_entries(DOMAIN)
-        if config_entry.data[CONF_HOST] == host
-    )
-
-
-def get_device_config(unique_device_id, config_entry):
-    """Return the configuration for given unique_device_id."""
-    return next(
-        config
-        for config in config_entry.data[CONF_DEVICES]
-        if config[ATTR_UNIQUE_ID] == unique_device_id
-    )
-
-
-def get_entity_config(unique_entity_id, config_entry):
-    """Return unqiue_device_id and entity_config for given unique_entity_id."""
-    for device_config in config_entry.data[CONF_DEVICES]:
-        for entity_config in device_config[CONF_ENTITIES]:
-            if entity_config[ATTR_UNIQUE_ID] == unique_entity_id:
-                return entity_config, device_config[ATTR_UNIQUE_ID]
-    else:
-        return None
+    config_entry.data[CONF_ENTITIES].sort(key=itemgetter(ATTR_PLATFORM, ATTR_RESOURCE))
 
 
 @websocket_api.require_admin
@@ -102,16 +80,40 @@ async def websocket_get_hosts(hass, connection, msg):
 @websocket_api.require_admin
 @websocket_api.async_response
 @websocket_api.websocket_command(
-    {vol.Required(TYPE): "lcn/config", vol.Required(ATTR_HOST): str}
+    {vol.Required(TYPE): "lcn/devices", vol.Required(ATTR_HOST): str}
 )
-async def websocket_get_config(hass, connection, msg):
-    """Get devices config."""
+async def websocket_get_device_configs(hass, connection, msg):
+    """Get device configs."""
     for config_entry in hass.config_entries.async_entries(DOMAIN):
         if config_entry.data[CONF_HOST] == msg[ATTR_HOST]:
             break
 
     sort_lcn_config_entry(config_entry)
     connection.send_result(msg[ID], config_entry.data[CONF_DEVICES])
+
+
+@websocket_api.require_admin
+@websocket_api.async_response
+@websocket_api.websocket_command(
+    {
+        vol.Required(TYPE): "lcn/entities",
+        vol.Required(ATTR_HOST): str,
+        vol.Required("unique_device_id"): str,
+    }
+)
+async def websocket_get_entity_configs(hass, connection, msg):
+    """Get device configs."""
+    for config_entry in hass.config_entries.async_entries(DOMAIN):
+        if config_entry.data[CONF_HOST] == msg[ATTR_HOST]:
+            break
+
+    sort_lcn_config_entry(config_entry)
+    entity_configs = [
+        entity_config
+        for entity_config in config_entry.data[CONF_ENTITIES]
+        if entity_config["unique_device_id"] == msg["unique_device_id"]
+    ]
+    connection.send_result(msg[ID], entity_configs)
 
 
 @websocket_api.require_admin
@@ -161,10 +163,7 @@ async def websocket_scan_devices(hass, connection, msg):
 )
 async def websocket_delete_device(hass, connection, msg):
     """Delete a device."""
-
-    config_entry = get_config_entry(
-        hass, msg[ATTR_HOST], hass.config_entries.async_entries(DOMAIN)
-    )
+    config_entry = get_config_entry(hass, msg[ATTR_HOST])
 
     device_registry = await dr.async_get_registry(hass)
     delete_device(config_entry, device_registry, msg[ATTR_UNIQUE_ID])
@@ -191,9 +190,7 @@ async def websocket_delete_device(hass, connection, msg):
 async def websocket_delete_entity(hass, connection, msg):
     """Delete an entity."""
 
-    config_entry = get_config_entry(
-        hass, msg[ATTR_HOST], hass.config_entries.async_entries(DOMAIN)
-    )
+    config_entry = get_config_entry(hass, msg[ATTR_HOST])
 
     device_registry = await dr.async_get_registry(hass)
     delete_entity(config_entry, device_registry, msg[ATTR_UNIQUE_ID])
@@ -211,14 +208,10 @@ async def websocket_delete_entity(hass, connection, msg):
 def delete_device(config_entry, device_registry, unique_id):
     """Delete a device from config_entry and device_registry."""
     device_config = get_device_config(unique_id, config_entry)
-
     # delete all child devices (and entities)
-    unique_entity_ids = [
-        entity_config[ATTR_UNIQUE_ID] for entity_config in device_config[CONF_ENTITIES]
-    ]
-
-    for unique_entity_id in unique_entity_ids:
-        delete_entity(config_entry, device_registry, unique_entity_id)
+    for entity_config in config_entry.data[CONF_ENTITIES]:
+        if entity_config["unique_device_id"] == device_config[ATTR_UNIQUE_ID]:
+            delete_entity(config_entry, device_registry, entity_config[ATTR_UNIQUE_ID])
 
     # now delete module/group device
     identifiers = {(DOMAIN, unique_id)}
@@ -231,9 +224,7 @@ def delete_device(config_entry, device_registry, unique_id):
 
 def delete_entity(config_entry, device_registry, unique_id):
     """Delete an entity from config_entry and device_registry/entity_registry."""
-    entity_config, unique_device_id = get_entity_config(unique_id, config_entry)
-
-    device_config = get_device_config(unique_device_id, config_entry)
+    entity_config = get_entity_config(unique_id, config_entry)
 
     identifiers = {(DOMAIN, unique_id)}
     entity_device = device_registry.async_get_device(identifiers, set())
@@ -241,7 +232,7 @@ def delete_entity(config_entry, device_registry, unique_id):
     if entity_device:
         # removes entity from device_registry and from entity_registry
         device_registry.async_remove_device(entity_device.id)
-        device_config[CONF_ENTITIES].remove(entity_config)
+        config_entry.data[CONF_ENTITIES].remove(entity_config)
 
 
 async def async_create_or_update_device(device_connection, config_entry, lock):
@@ -272,7 +263,6 @@ async def async_create_or_update_device(device_connection, config_entry, lock):
                 CONF_SEGMENT_ID: device_connection.get_seg_id(),
                 CONF_ADDRESS_ID: device_connection.get_id(),
                 CONF_IS_GROUP: device_connection.is_group(),
-                CONF_ENTITIES: [],
             }
             config_entry.data[CONF_DEVICES].append(device)
 
@@ -291,7 +281,8 @@ async def async_create_or_update_device(device_connection, config_entry, lock):
 def async_load_websocket_api(hass):
     """Set up the web socket API."""
     websocket_api.async_register_command(hass, websocket_get_hosts)
-    websocket_api.async_register_command(hass, websocket_get_config)
+    websocket_api.async_register_command(hass, websocket_get_device_configs)
+    websocket_api.async_register_command(hass, websocket_get_entity_configs)
     websocket_api.async_register_command(hass, websocket_scan_devices)
     websocket_api.async_register_command(hass, websocket_delete_device)
     websocket_api.async_register_command(hass, websocket_delete_entity)

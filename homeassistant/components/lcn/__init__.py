@@ -290,8 +290,6 @@ async def async_unload_entry(hass, config_entry):
         connection = hass.data[DATA_LCN][CONF_CONNECTIONS].pop(host)
         await connection.async_close()
 
-    # TODO: remove device for host!!!
-
     return True
 
 

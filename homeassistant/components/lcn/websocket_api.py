@@ -16,6 +16,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CONF_ADDRESS_ID,
@@ -49,6 +50,7 @@ ATTR_PLATFORM_DATA = "platform_data"
 
 def sort_lcn_config_entry(config_entry):
     """Sort given config_entry."""
+
     # sort devices_config
     config_entry.data[CONF_DEVICES].sort(
         key=itemgetter(ATTR_IS_GROUP, ATTR_SEGMENT_ID, ATTR_ADDRESS_ID)
@@ -80,14 +82,11 @@ async def websocket_get_hosts(hass, connection, msg):
 @websocket_api.require_admin
 @websocket_api.async_response
 @websocket_api.websocket_command(
-    {vol.Required(TYPE): "lcn/devices", vol.Required(ATTR_HOST): str}
+    {vol.Required(TYPE): "lcn/devices", vol.Required(ATTR_HOST): cv.string}
 )
 async def websocket_get_device_configs(hass, connection, msg):
     """Get device configs."""
-    for config_entry in hass.config_entries.async_entries(DOMAIN):
-        if config_entry.data[CONF_HOST] == msg[ATTR_HOST]:
-            break
-
+    config_entry = get_config_entry(hass, msg[ATTR_HOST])
     sort_lcn_config_entry(config_entry)
     connection.send_result(msg[ID], config_entry.data[CONF_DEVICES])
 
@@ -96,16 +95,30 @@ async def websocket_get_device_configs(hass, connection, msg):
 @websocket_api.async_response
 @websocket_api.websocket_command(
     {
+        vol.Required(TYPE): "lcn/device",
+        vol.Required(ATTR_HOST): cv.string,
+        vol.Required("unique_device_id"): cv.string,
+    }
+)
+async def websocket_get_device_config(hass, connection, msg):
+    """Get device config."""
+    config_entry = get_config_entry(hass, msg[ATTR_HOST])
+    device_config = get_device_config(msg["unique_device_id"], config_entry)
+    connection.send_result(msg[ID], device_config)
+
+
+@websocket_api.require_admin
+@websocket_api.async_response
+@websocket_api.websocket_command(
+    {
         vol.Required(TYPE): "lcn/entities",
-        vol.Required(ATTR_HOST): str,
-        vol.Required("unique_device_id"): str,
+        vol.Required(ATTR_HOST): cv.string,
+        vol.Required("unique_device_id"): cv.string,
     }
 )
 async def websocket_get_entity_configs(hass, connection, msg):
-    """Get device configs."""
-    for config_entry in hass.config_entries.async_entries(DOMAIN):
-        if config_entry.data[CONF_HOST] == msg[ATTR_HOST]:
-            break
+    """Get entities configs."""
+    config_entry = get_config_entry(hass, msg[ATTR_HOST])
 
     sort_lcn_config_entry(config_entry)
     entity_configs = [
@@ -119,14 +132,12 @@ async def websocket_get_entity_configs(hass, connection, msg):
 @websocket_api.require_admin
 @websocket_api.async_response
 @websocket_api.websocket_command(
-    {vol.Required(TYPE): "lcn/device/scan", vol.Required(ATTR_HOST): str}
+    {vol.Required(TYPE): "lcn/device/scan", vol.Required(ATTR_HOST): cv.string}
 )
 async def websocket_scan_devices(hass, connection, msg):
     """Scan for new devices."""
     host_name = msg[ATTR_HOST]
-    for config_entry in hass.config_entries.async_entries(DOMAIN):
-        if config_entry.data[CONF_HOST] == host_name:
-            break
+    config_entry = get_config_entry(hass, host_name)
 
     host_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     await host_connection.scan_modules()
@@ -156,9 +167,41 @@ async def websocket_scan_devices(hass, connection, msg):
 @websocket_api.async_response
 @websocket_api.websocket_command(
     {
+        vol.Required(TYPE): "lcn/device/add",
+        vol.Required(ATTR_HOST): cv.string,
+        vol.Required(ATTR_SEGMENT_ID): cv.positive_int,
+        vol.Required(ATTR_ADDRESS_ID): cv.positive_int,
+        vol.Required(ATTR_IS_GROUP): cv.boolean,
+        vol.Required(ATTR_NAME): cv.string,
+    }
+)
+async def websocket_add_device(hass, connection, msg):
+    """Add a device."""
+    # config_entry = get_config_entry(hass, msg[ATTR_HOST])
+
+    # device_registry = await dr.async_get_registry(hass)
+
+    print(msg[ATTR_NAME])
+
+    # delete_device(config_entry, device_registry, msg[ATTR_UNIQUE_ID])
+
+    # # sort config_entry
+    # sort_lcn_config_entry(config_entry)
+
+    # # schedule config_entry for save
+    # hass.config_entries.async_update_entry(config_entry)
+
+    # return the device config, not all devices !!!
+    connection.send_result(msg[ID])
+
+
+@websocket_api.require_admin
+@websocket_api.async_response
+@websocket_api.websocket_command(
+    {
         vol.Required(TYPE): "lcn/device/delete",
-        vol.Required(ATTR_HOST): str,
-        vol.Required(ATTR_UNIQUE_ID): str,
+        vol.Required(ATTR_HOST): cv.string,
+        vol.Required(ATTR_UNIQUE_ID): cv.string,
     }
 )
 async def websocket_delete_device(hass, connection, msg):
@@ -183,13 +226,12 @@ async def websocket_delete_device(hass, connection, msg):
 @websocket_api.websocket_command(
     {
         vol.Required(TYPE): "lcn/entity/delete",
-        vol.Required(ATTR_HOST): str,
-        vol.Required(ATTR_UNIQUE_ID): str,
+        vol.Required(ATTR_HOST): cv.string,
+        vol.Required(ATTR_UNIQUE_ID): cv.string,
     }
 )
 async def websocket_delete_entity(hass, connection, msg):
     """Delete an entity."""
-
     config_entry = get_config_entry(hass, msg[ATTR_HOST])
 
     device_registry = await dr.async_get_registry(hass)
@@ -209,7 +251,7 @@ def delete_device(config_entry, device_registry, unique_id):
     """Delete a device from config_entry and device_registry."""
     device_config = get_device_config(unique_id, config_entry)
     # delete all child devices (and entities)
-    for entity_config in config_entry.data[CONF_ENTITIES]:
+    for entity_config in config_entry.data[CONF_ENTITIES][:]:
         if entity_config["unique_device_id"] == device_config[ATTR_UNIQUE_ID]:
             delete_entity(config_entry, device_registry, entity_config[ATTR_UNIQUE_ID])
 
@@ -281,8 +323,10 @@ async def async_create_or_update_device(device_connection, config_entry, lock):
 def async_load_websocket_api(hass):
     """Set up the web socket API."""
     websocket_api.async_register_command(hass, websocket_get_hosts)
+    websocket_api.async_register_command(hass, websocket_get_device_config)
     websocket_api.async_register_command(hass, websocket_get_device_configs)
     websocket_api.async_register_command(hass, websocket_get_entity_configs)
     websocket_api.async_register_command(hass, websocket_scan_devices)
+    websocket_api.async_register_command(hass, websocket_add_device)
     websocket_api.async_register_command(hass, websocket_delete_device)
     websocket_api.async_register_command(hass, websocket_delete_entity)

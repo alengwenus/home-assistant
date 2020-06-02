@@ -4,49 +4,37 @@ import pypck
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import CONF_ENTITIES, CONF_HOST
 
-from . import LcnDevice
-from .const import (
-    CONF_ADDRESS_ID,
-    CONF_CONNECTIONS,
-    CONF_IS_GROUP,
-    CONF_OUTPUT,
-    CONF_SEGMENT_ID,
-    DATA_LCN,
-    OUTPUT_PORTS,
-)
-from .helpers import get_device_config
+from .const import CONF_CONNECTIONS, CONF_OUTPUT, DATA_LCN, OUTPUT_PORTS
+from .helpers import get_device_address, get_device_config
+from .lcn_entity import LcnEntity
 
 
-async def async_setup_entry(hass, config_entry, async_add_devices):
-    """Set up LCN switch platform from config_entry."""
-    # if "switch" not in config_entry.data[CONF_PLATFORMS]:
-    #     return
-    devices = []
+def create_lcn_switch_entity(hass, entity_config, config_entry):
+    """Set up an entity for this platform."""
     host_name = config_entry.data[CONF_HOST]
     host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
+    device_config = get_device_config(entity_config["unique_device_id"], config_entry)
+    addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+    device_connection = host.get_address_conn(addr)
+    if entity_config["platform_data"][CONF_OUTPUT] in OUTPUT_PORTS:
+        entity = LcnOutputSwitch(entity_config, device_connection)
+    else:  # in RELAY_PORTS
+        entity = LcnRelaySwitch(entity_config, device_connection)
+    return entity
+
+
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    """Set up LCN switch platform from config_entry."""
+    entities = []
 
     for entity_config in config_entry.data[CONF_ENTITIES]:
         if entity_config["platform"] == "switch":
-            device_config = get_device_config(
-                entity_config["unique_device_id"], config_entry
-            )
-            addr = pypck.lcn_addr.LcnAddr(
-                device_config[CONF_SEGMENT_ID],
-                device_config[CONF_ADDRESS_ID],
-                device_config[CONF_IS_GROUP],
-            )
-            device_connection = host.get_address_conn(addr)
-            if entity_config["platform_data"][CONF_OUTPUT] in OUTPUT_PORTS:
-                device = LcnOutputSwitch(entity_config, device_connection)
-            else:  # in RELAY_PORTS
-                device = LcnRelaySwitch(entity_config, device_connection)
+            entities.append(create_lcn_switch_entity(hass, entity_config, config_entry))
 
-            devices.append(device)
-
-    async_add_devices(devices)
+    async_add_entities(entities)
 
 
-class LcnOutputSwitch(LcnDevice, SwitchEntity):
+class LcnOutputSwitch(LcnEntity, SwitchEntity):
     """Representation of a LCN switch for output ports."""
 
     def __init__(self, config, address_connection):
@@ -96,7 +84,7 @@ class LcnOutputSwitch(LcnDevice, SwitchEntity):
         self.async_write_ha_state()
 
 
-class LcnRelaySwitch(LcnDevice, SwitchEntity):
+class LcnRelaySwitch(LcnEntity, SwitchEntity):
     """Representation of a LCN switch for relay ports."""
 
     def __init__(self, config, address_connection):

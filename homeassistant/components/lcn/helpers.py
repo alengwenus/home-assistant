@@ -162,11 +162,7 @@ async def async_update_lcn_device_info(hass, config_entry):
             device_software_serial = 0
             device_hardware_type = 0
         else:
-            addr = pypck.lcn_addr.LcnAddr(
-                device_config[CONF_SEGMENT_ID],
-                device_config[CONF_ADDRESS_ID],
-                device_config[CONF_IS_GROUP],
-            )
+            addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
             # get module info
             device_connection = lcn_connection.get_address_conn(addr)
             try:
@@ -212,6 +208,15 @@ def get_entity_config(unique_entity_id, config_entry):
     )
 
 
+def get_device_address(device_config):
+    """Return a tuple with address information."""
+    return (
+        device_config[CONF_SEGMENT_ID],
+        device_config[CONF_ADDRESS_ID],
+        device_config[CONF_IS_GROUP],
+    )
+
+
 def address_repr(address_connection):
     """Give a representation of the hardware address."""
     # host_name = address_connection.conn.connection_id
@@ -227,11 +232,7 @@ async def get_address_connections_from_config_entry(hass, config_entry):
     host_name = config_entry.data[CONF_HOST]
     lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     for device_config in config_entry.data[CONF_DEVICES]:
-        addr = pypck.lcn_addr.LcnAddr(
-            device_config[CONF_SEGMENT_ID],
-            device_config[CONF_ADDRESS_ID],
-            device_config[CONF_IS_GROUP],
-        )
+        addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
         address_connection = lcn_connection.get_address_conn(addr)
         address_connections.add(address_connection)
         if not address_connection.is_group():

@@ -22,17 +22,22 @@ from .const import (
     CONF_ADDRESS_ID,
     CONF_CONNECTIONS,
     CONF_IS_GROUP,
+    CONF_OUTPUT,
     CONF_SEGMENT_ID,
     DATA_LCN,
     DOMAIN,
+    OUTPUT_PORTS,
+    RELAY_PORTS,
 )
 from .helpers import (
     async_register_lcn_address_devices,
     generate_unique_id,
     get_config_entry,
+    get_device_address,
     get_device_config,
     get_entity_config,
 )
+from .switch import create_lcn_switch_entity
 
 TYPE = "type"
 ID = "id"
@@ -224,6 +229,65 @@ async def websocket_delete_device(hass, connection, msg):
 @websocket_api.async_response
 @websocket_api.websocket_command(
     {
+        vol.Required(TYPE): "lcn/entity/add",
+        vol.Required(ATTR_HOST): cv.string,
+        vol.Required("unique_device_id"): cv.string,
+        vol.Required(ATTR_NAME): cv.string,
+        vol.Required(ATTR_PLATFORM): cv.string,
+        vol.Required(ATTR_PLATFORM_DATA): {
+            vol.Required(CONF_OUTPUT): vol.All(
+                vol.Upper, vol.In(OUTPUT_PORTS + RELAY_PORTS)
+            )
+        },
+    }
+)
+async def websocket_add_entity(hass, connection, msg):
+    """Add an entity."""
+    print(msg)
+    config_entry = get_config_entry(hass, msg[ATTR_HOST])
+
+    device_config = get_device_config(msg["unique_device_id"], config_entry)
+    unique_id = generate_unique_id(
+        msg[ATTR_HOST],
+        get_device_address(device_config),
+        (msg[ATTR_PLATFORM], msg[ATTR_PLATFORM_DATA]),
+    )
+
+    entity_config = {
+        ATTR_UNIQUE_ID: unique_id,
+        "unique_device_id": msg["unique_device_id"],
+        CONF_NAME: msg[ATTR_NAME],
+        ATTR_RESOURCE: unique_id.split(".", 4)[4],
+        ATTR_PLATFORM: msg[ATTR_PLATFORM],
+        ATTR_PLATFORM_DATA: msg[ATTR_PLATFORM_DATA],
+    }
+
+    # Create new entity and add to corresponding component
+    entity = create_lcn_switch_entity(hass, entity_config, config_entry)
+
+    component = hass.data[msg[ATTR_PLATFORM]]
+    platform = component._platforms[config_entry.entry_id]
+
+    hass.async_add_job(platform.async_add_entities([entity]))
+
+    # Add entity config to config_entry
+    config_entry.data[CONF_ENTITIES].append(entity_config)
+
+    # sort config_entry
+    sort_lcn_config_entry(config_entry)
+
+    # schedule config_entry for save
+    hass.config_entries.async_update_entry(config_entry)
+
+    # return the device config, not all devices !!!
+    result = True
+    connection.send_result(msg[ID], result)
+
+
+@websocket_api.require_admin
+@websocket_api.async_response
+@websocket_api.websocket_command(
+    {
         vol.Required(TYPE): "lcn/entity/delete",
         vol.Required(ATTR_HOST): cv.string,
         vol.Required(ATTR_UNIQUE_ID): cv.string,
@@ -374,4 +438,5 @@ def async_load_websocket_api(hass):
     websocket_api.async_register_command(hass, websocket_scan_devices)
     websocket_api.async_register_command(hass, websocket_add_device)
     websocket_api.async_register_command(hass, websocket_delete_device)
+    websocket_api.async_register_command(hass, websocket_add_entity)
     websocket_api.async_register_command(hass, websocket_delete_entity)

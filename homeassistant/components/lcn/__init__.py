@@ -25,7 +25,6 @@ from homeassistant.const import (
     TEMP_FAHRENHEIT,
 )
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.entity import Entity
 
 from . import websocket_api as wsapi
 from .const import (
@@ -65,7 +64,6 @@ from .const import (
     VARIABLES,
 )
 from .helpers import (
-    address_repr,
     async_register_lcn_devices,
     async_update_lcn_device_info,
     has_unique_host_names,
@@ -337,54 +335,3 @@ async def async_setup(hass, config):
     #     )
 
     return True
-
-
-class LcnDevice(Entity):
-    """Parent class for all devices associated with the LCN component."""
-
-    def __init__(self, config, address_connection):
-        """Initialize the LCN device."""
-        self.config = config
-        self.address_connection = address_connection
-        self._name = config[CONF_NAME]
-        self._unique_id = config["unique_id"]
-
-    @property
-    def unique_id(self):
-        """Return a unique ID."""
-        return self._unique_id
-
-    @property
-    def device_info(self):
-        """Return device specific attributes."""
-        if self.address_connection.is_group():
-            hw_type = f"group ({self.unique_id.split('.', 2)[2]})"
-        else:
-            hw_type = f"module ({self.unique_id.split('.', 2)[2]})"
-            # hw_type = f'0x{self.address_connection.hw_type:02X}'
-
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "LCN",
-            "model": hw_type,
-            "via_device": (DOMAIN, address_repr(self.address_connection)),
-        }
-
-    @property
-    def should_poll(self):
-        """Lcn device entity pushes its state to HA."""
-        return False
-
-    async def async_added_to_hass(self):
-        """Run when entity about to be added to hass."""
-        self.address_connection.register_for_inputs(self.input_received)
-
-    @property
-    def name(self):
-        """Return the name of the device."""
-        return self._name
-
-    def input_received(self, input_obj):
-        """Set state/value when LCN input object (command) is received."""
-        raise NotImplementedError("Pure virtual function.")

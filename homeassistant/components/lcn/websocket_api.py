@@ -49,8 +49,8 @@ ATTR_SEGMENT_ID = "segment_id"
 ATTR_ADDRESS_ID = "address_id"
 ATTR_IS_GROUP = "is_group"
 ATTR_ENTITIES = "entities"
-ATTR_PLATFORM = "platform"
-ATTR_PLATFORM_DATA = "platform_data"
+ATTR_DOMAIN = "domain"
+ATTR_DOMAIN_DATA = "domain_data"
 
 
 def sort_lcn_config_entry(config_entry):
@@ -62,7 +62,7 @@ def sort_lcn_config_entry(config_entry):
     )
 
     # sort entities_config
-    config_entry.data[CONF_ENTITIES].sort(key=itemgetter(ATTR_PLATFORM, ATTR_RESOURCE))
+    config_entry.data[CONF_ENTITIES].sort(key=itemgetter(ATTR_DOMAIN, ATTR_RESOURCE))
 
 
 @websocket_api.require_admin
@@ -233,8 +233,8 @@ async def websocket_delete_device(hass, connection, msg):
         vol.Required(ATTR_HOST): cv.string,
         vol.Required("unique_device_id"): cv.string,
         vol.Required(ATTR_NAME): cv.string,
-        vol.Required(ATTR_PLATFORM): cv.string,
-        vol.Required(ATTR_PLATFORM_DATA): {
+        vol.Required(ATTR_DOMAIN): cv.string,
+        vol.Required(ATTR_DOMAIN_DATA): {
             vol.Required(CONF_OUTPUT): vol.All(
                 vol.Upper, vol.In(OUTPUT_PORTS + RELAY_PORTS)
             )
@@ -250,7 +250,7 @@ async def websocket_add_entity(hass, connection, msg):
     unique_id = generate_unique_id(
         msg[ATTR_HOST],
         get_device_address(device_config),
-        (msg[ATTR_PLATFORM], msg[ATTR_PLATFORM_DATA]),
+        (msg[ATTR_DOMAIN], msg[ATTR_DOMAIN_DATA]),
     )
 
     entity_config = {
@@ -258,14 +258,14 @@ async def websocket_add_entity(hass, connection, msg):
         "unique_device_id": msg["unique_device_id"],
         CONF_NAME: msg[ATTR_NAME],
         ATTR_RESOURCE: unique_id.split(".", 4)[4],
-        ATTR_PLATFORM: msg[ATTR_PLATFORM],
-        ATTR_PLATFORM_DATA: msg[ATTR_PLATFORM_DATA],
+        ATTR_DOMAIN: msg[ATTR_DOMAIN],
+        ATTR_DOMAIN_DATA: msg[ATTR_DOMAIN_DATA],
     }
 
     # Create new entity and add to corresponding component
     entity = create_lcn_switch_entity(hass, entity_config, config_entry)
 
-    component = hass.data[msg[ATTR_PLATFORM]]
+    component = hass.data[msg[ATTR_DOMAIN]]
     platform = component._platforms[config_entry.entry_id]
 
     hass.async_add_job(platform.async_add_entities([entity]))

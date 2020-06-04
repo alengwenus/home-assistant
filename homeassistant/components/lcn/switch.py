@@ -1,22 +1,31 @@
 """Support for LCN switches."""
 import pypck
 
-from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import CONF_ENTITIES, CONF_HOST
+from homeassistant.components.switch import DOMAIN, SwitchEntity
+from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES, CONF_HOST
 
-from .const import CONF_CONNECTIONS, CONF_OUTPUT, DATA_LCN, OUTPUT_PORTS
+from .const import (
+    CONF_CONNECTIONS,
+    CONF_DOMAIN_DATA,
+    CONF_OUTPUT,
+    CONF_UNIQUE_DEVICE_ID,
+    DATA_LCN,
+    OUTPUT_PORTS,
+)
 from .helpers import get_device_address, get_device_config
 from .lcn_entity import LcnEntity
 
 
 def create_lcn_switch_entity(hass, entity_config, config_entry):
-    """Set up an entity for this platform."""
+    """Set up an entity for this domain."""
     host_name = config_entry.data[CONF_HOST]
     host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
-    device_config = get_device_config(entity_config["unique_device_id"], config_entry)
+    device_config = get_device_config(
+        entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
+    )
     addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
     device_connection = host.get_address_conn(addr)
-    if entity_config["platform_data"][CONF_OUTPUT] in OUTPUT_PORTS:
+    if entity_config[CONF_DOMAIN_DATA][CONF_OUTPUT] in OUTPUT_PORTS:
         entity = LcnOutputSwitch(entity_config, device_connection)
     else:  # in RELAY_PORTS
         entity = LcnRelaySwitch(entity_config, device_connection)
@@ -24,11 +33,11 @@ def create_lcn_switch_entity(hass, entity_config, config_entry):
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up LCN switch platform from config_entry."""
+    """Set up LCN switch entities from a config entry."""
     entities = []
 
     for entity_config in config_entry.data[CONF_ENTITIES]:
-        if entity_config["platform"] == "switch":
+        if entity_config[CONF_DOMAIN] == DOMAIN:
             entities.append(create_lcn_switch_entity(hass, entity_config, config_entry))
 
     async_add_entities(entities)
@@ -41,7 +50,7 @@ class LcnOutputSwitch(LcnEntity, SwitchEntity):
         """Initialize the LCN switch."""
         super().__init__(config, address_connection)
 
-        self.output = pypck.lcn_defs.OutputPort[config["platform_data"][CONF_OUTPUT]]
+        self.output = pypck.lcn_defs.OutputPort[config[CONF_DOMAIN_DATA][CONF_OUTPUT]]
 
         self._is_on = None
 
@@ -91,7 +100,7 @@ class LcnRelaySwitch(LcnEntity, SwitchEntity):
         """Initialize the LCN switch."""
         super().__init__(config, address_connection)
 
-        self.output = pypck.lcn_defs.RelayPort[config["platform_data"][CONF_OUTPUT]]
+        self.output = pypck.lcn_defs.RelayPort[config[CONF_DOMAIN_DATA][CONF_OUTPUT]]
 
         self._is_on = None
 

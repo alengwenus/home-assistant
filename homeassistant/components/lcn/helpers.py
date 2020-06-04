@@ -9,12 +9,14 @@ import voluptuous as vol
 from homeassistant.const import (
     CONF_ADDRESS,
     CONF_DEVICES,
+    CONF_DOMAIN,
     CONF_ENTITIES,
     CONF_HOST,
     CONF_IP_ADDRESS,
     CONF_NAME,
     CONF_PASSWORD,
     CONF_PORT,
+    CONF_RESOURCE,
     CONF_USERNAME,
 )
 from homeassistant.helpers import device_registry as dr
@@ -23,9 +25,15 @@ from .const import (
     CONF_ADDRESS_ID,
     CONF_CONNECTIONS,
     CONF_DIM_MODE,
+    CONF_DOMAIN_DATA,
+    CONF_HARDWARE_SERIAL,
+    CONF_HARDWARE_TYPE,
     CONF_IS_GROUP,
     CONF_SEGMENT_ID,
     CONF_SK_NUM_TRIES,
+    CONF_SOFTWARE_SERIAL,
+    CONF_UNIQUE_DEVICE_ID,
+    CONF_UNIQUE_ID,
     DATA_LCN,
     DEFAULT_NAME,
     DOMAIN,
@@ -39,7 +47,7 @@ PATTERN_ADDRESS = re.compile(
 )
 
 
-PLATFORM_LOOKUP = {
+DOMAIN_LOOKUP = {
     "binary_sensors": "binary_sensor",
     "climates": "climate",
     "covers": "cover",
@@ -53,29 +61,29 @@ PLATFORM_LOOKUP = {
 def generate_unique_id(
     host_name,
     address=None,
-    platform_config=None,  # (platform_name, platform_data)
-    domain=DOMAIN,
+    domain_config=None,  # (domain_name, domain_data)
+    platform=DOMAIN,
 ):
     """Generate a unique_id from the given parameters."""
-    unique_id = f"{domain}.{host_name}"
+    unique_id = f"{platform}.{host_name}"
     if address:
         is_group = "g" if address[2] else "m"
         unique_id += f".{is_group}{address[0]:03d}{address[1]:03d}"
-        if platform_config:
-            platform_name, platform_data = platform_config
-            if platform_name in ["switch", "light"]:
-                resource = f'{platform_data["output"]}'.lower()
-            elif platform_name in ["binary_sensor", "sensor"]:
-                resource = f'{platform_data["source"]}'.lower()
-            elif platform_name == "cover":
-                resource = f'{platform_data["motor"]}'.lower()
-            elif platform_name == "climate":
-                resource = f'{platform_data["setpoint"]}.{platform_data["source"]}'
-            elif platform_name == "scenes":
-                resource = f'{platform_data["register"]}.{platform_data["scene"]}'
+        if domain_config:
+            domain_name, domain_data = domain_config
+            if domain_name in ["switch", "light"]:
+                resource = f'{domain_data["output"]}'.lower()
+            elif domain_name in ["binary_sensor", "sensor"]:
+                resource = f'{domain_data["source"]}'.lower()
+            elif domain_name == "cover":
+                resource = f'{domain_data["motor"]}'.lower()
+            elif domain_name == "climate":
+                resource = f'{domain_data["setpoint"]}.{domain_data["source"]}'
+            elif domain_name == "scenes":
+                resource = f'{domain_data["register"]}.{domain_data["scene"]}'
             else:
-                raise ValueError("Unknown platform.")
-            unique_id += f".{platform_name}.{resource}"
+                raise ValueError("Unknown domain.")
+            unique_id += f".{domain_name}.{resource}"
     return unique_id
 
 
@@ -97,14 +105,14 @@ def import_lcn_config(lcn_config):
         }
         data[host[CONF_HOST]] = host
 
-    for platform_name, platform_config in lcn_config.items():
-        if platform_name == CONF_CONNECTIONS:
+    for domain_name, domain_config in lcn_config.items():
+        if domain_name == CONF_CONNECTIONS:
             continue
         # loop over entities in configuration.yaml
-        for platform_data in platform_config:
-            # remove name and address from platform_data
-            entity_name = platform_data.pop(CONF_NAME)
-            address, host_name = platform_data.pop(CONF_ADDRESS)
+        for domain_data in domain_config:
+            # remove name and address from domain_data
+            entity_name = domain_data.pop(CONF_NAME)
+            address, host_name = domain_data.pop(CONF_ADDRESS)
 
             if host_name is None:
                 host_name = DEFAULT_NAME
@@ -112,38 +120,38 @@ def import_lcn_config(lcn_config):
             # check if we have a new device config
             unique_device_id = generate_unique_id(host_name, address)
             for device_config in data[host_name][CONF_DEVICES]:
-                if unique_device_id == device_config["unique_id"]:
+                if unique_device_id == device_config[CONF_UNIQUE_ID]:
                     break
             else:  # create new device_config
                 device_config = {
-                    "unique_id": unique_device_id,
+                    CONF_UNIQUE_ID: unique_device_id,
                     CONF_NAME: "",
                     CONF_SEGMENT_ID: address[0],
                     CONF_ADDRESS_ID: address[1],
                     CONF_IS_GROUP: address[2],
-                    "hardware_serial": 0,
-                    "software_serial": 0,
-                    "hardware_type": 0,
+                    CONF_HARDWARE_SERIAL: 0,
+                    CONF_SOFTWARE_SERIAL: 0,
+                    CONF_HARDWARE_TYPE: 0,
                 }
 
                 data[host_name][CONF_DEVICES].append(device_config)
 
             # insert entity config
             unique_entity_id = generate_unique_id(
-                host_name, address, (PLATFORM_LOOKUP[platform_name], platform_data)
+                host_name, address, (DOMAIN_LOOKUP[domain_name], domain_data)
             )
             for entity_config in data[host_name][CONF_ENTITIES]:
-                if unique_entity_id == entity_config["unique_id"]:
+                if unique_entity_id == entity_config[CONF_UNIQUE_ID]:
                     _LOGGER.warning("Unique_id %s already defined.", unique_entity_id)
                     break
             else:  # create new entity_config
                 entity_config = {
-                    "unique_id": unique_entity_id,
-                    "unique_device_id": unique_device_id,
+                    CONF_UNIQUE_ID: unique_entity_id,
+                    CONF_UNIQUE_DEVICE_ID: unique_device_id,
                     CONF_NAME: entity_name,
-                    "resource": unique_entity_id.split(".", 4)[4],
-                    "platform": PLATFORM_LOOKUP[platform_name],
-                    "platform_data": platform_data.copy(),
+                    CONF_RESOURCE: unique_entity_id.split(".", 4)[4],
+                    CONF_DOMAIN: DOMAIN_LOOKUP[domain_name],
+                    CONF_DOMAIN_DATA: domain_data.copy(),
                 }
                 data[host_name][CONF_ENTITIES].append(entity_config)
 
@@ -176,9 +184,9 @@ async def async_update_lcn_device_info(hass, config_entry):
             device_hardware_type = device_connection.hw_type
 
         device_config[CONF_NAME] = device_name
-        device_config["hardware_serial"] = device_hardware_serial
-        device_config["software_serial"] = device_software_serial
-        device_config["hardware_type"] = device_hardware_type
+        device_config[CONF_HARDWARE_SERIAL] = device_hardware_serial
+        device_config[CONF_SOFTWARE_SERIAL] = device_software_serial
+        device_config[CONF_HARDWARE_TYPE] = device_hardware_type
 
 
 def get_config_entry(hass, host):
@@ -195,7 +203,7 @@ def get_device_config(unique_device_id, config_entry):
     return next(
         device_config
         for device_config in config_entry.data[CONF_DEVICES]
-        if device_config["unique_id"] == unique_device_id
+        if device_config[CONF_UNIQUE_ID] == unique_device_id
     )
 
 
@@ -204,7 +212,7 @@ def get_entity_config(unique_entity_id, config_entry):
     return next(
         entity_config
         for entity_config in config_entry.data[CONF_ENTITIES]
-        if entity_config["unique_id"] == unique_entity_id
+        if entity_config[CONF_UNIQUE_ID] == unique_entity_id
     )
 
 
@@ -244,7 +252,7 @@ async def async_register_lcn_host_device(hass, config_entry):
     """Register LCN host for given config_entry."""
     device_registry = await dr.async_get_registry(hass)
     host_name = config_entry.data[CONF_HOST]
-    unique_host_id = config_entry.data["unique_id"]
+    unique_host_id = config_entry.data[CONF_UNIQUE_ID]
     identifiers = {(DOMAIN, unique_host_id)}
     device = device_registry.async_get_device(identifiers, set())
     if device:  # update device properties if already in registry
@@ -265,7 +273,7 @@ async def async_register_lcn_address_devices(hass, config_entry):
     The name of all given address_connections is collected and the devices
     are updated.
     """
-    unique_host_id = config_entry.data["unique_id"]
+    unique_host_id = config_entry.data[CONF_UNIQUE_ID]
     host_identifier = (DOMAIN, unique_host_id)
     device_registry = await dr.async_get_registry(hass)
     # host_device = device_registry.async_get_device({host_identifier}, set())
@@ -278,7 +286,7 @@ async def async_register_lcn_address_devices(hass, config_entry):
     )
 
     for device_config in config_entry.data[CONF_DEVICES]:
-        unique_device_id = device_config["unique_id"]
+        unique_device_id = device_config[CONF_UNIQUE_ID]
         device_name = device_config[CONF_NAME]
         identifiers = {(DOMAIN, unique_device_id)}
 
@@ -288,7 +296,7 @@ async def async_register_lcn_address_devices(hass, config_entry):
         else:
             # get module info
             device_model = f"module ({unique_device_id.split('.', 2)[2]})"
-            device_data.update(sw_version=f"{device_config['software_serial']:06X}")
+            device_data.update(sw_version=f"{device_config[CONF_SOFTWARE_SERIAL]:06X}")
 
         device_data.update(
             name=device_name, identifiers=identifiers, model=device_model

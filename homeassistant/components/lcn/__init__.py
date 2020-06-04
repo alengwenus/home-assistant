@@ -64,8 +64,8 @@ from .const import (
     VARIABLES,
 )
 from .helpers import (
-    async_register_lcn_devices,
-    async_update_lcn_device_info,
+    async_update_device_registry,
+    async_update_lcn_device_serials,
     has_unique_host_names,
     import_lcn_config,
     is_address,
@@ -261,11 +261,17 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.warning('Connection to PCHK "%s" failed.', host)
             return False
 
-        # update config_entry with LCN device names
-        await hass.async_create_task(async_update_lcn_device_info(hass, config_entry))
-
         # register LCN host, modules and groups in device registry
-        await hass.async_create_task(async_register_lcn_devices(hass, config_entry))
+        # await hass.async_create_task(async_register_lcn_devices(hass, config_entry))
+
+        # Update DeviceRegistry whenever ConfigEntry gets updated
+        # to keep both in sync.
+        config_entry.add_update_listener(async_update_device_registry)
+
+        # update config_entry with LCN device serials
+        await hass.async_create_task(
+            async_update_lcn_device_serials(hass, config_entry)
+        )
 
         # forward config_entry to platforms
         hass.async_add_job(

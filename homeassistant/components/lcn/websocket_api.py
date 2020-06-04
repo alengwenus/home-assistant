@@ -29,8 +29,7 @@ from .const import (
     OUTPUT_PORTS,
     RELAY_PORTS,
 )
-from .helpers import (
-    async_register_lcn_address_devices,
+from .helpers import (  # async_register_lcn_address_devices,
     generate_unique_id,
     get_config_entry,
     get_device_address,
@@ -163,7 +162,7 @@ async def websocket_scan_devices(hass, connection, msg):
     hass.config_entries.async_update_entry(config_entry)
 
     # create new devices
-    await hass.async_create_task(async_register_lcn_address_devices(hass, config_entry))
+    # await hass.async_create_task(async_register_lcn_address_devices(hass, config_entry))
 
     connection.send_result(msg[ID], config_entry.data[CONF_DEVICES])
 
@@ -183,11 +182,10 @@ async def websocket_scan_devices(hass, connection, msg):
 async def websocket_add_device(hass, connection, msg):
     """Add a device."""
     config_entry = get_config_entry(hass, msg[ATTR_HOST])
-    device_registry = await dr.async_get_registry(hass)
 
     address = (msg[ATTR_SEGMENT_ID], msg[ATTR_ADDRESS_ID], msg[ATTR_IS_GROUP])
 
-    result = add_device(config_entry, device_registry, address, msg[ATTR_NAME])
+    result = add_device(config_entry, address, msg[ATTR_NAME])
 
     # sort config_entry
     sort_lcn_config_entry(config_entry)
@@ -310,35 +308,11 @@ async def websocket_delete_entity(hass, connection, msg):
     connection.send_result(msg[ID])
 
 
-def add_device(config_entry, device_registry, address, name=""):
+def add_device(config_entry, address, name=""):
     """Add a device to config_entry and device_registry."""
-    unique_host_id = config_entry.data["unique_id"]
+    # unique_host_id = config_entry.data["unique_id"]
     host_name = config_entry.data[ATTR_HOST]
     unique_device_id = generate_unique_id(host_name, address)
-
-    # add device to device_registry
-    identifiers = {(DOMAIN, unique_device_id)}
-    if address[2]:  # is_group
-        # get group info
-        device_model = f"group ({unique_device_id.split('.', 2)[2]})"
-    else:
-        # get module info
-        device_model = f"module ({unique_device_id.split('.', 2)[2]})"
-
-    device_data = dict(
-        config_entry_id=config_entry.entry_id,
-        identifiers=identifiers,
-        name=name,
-        manufacturer="LCN",
-        model=device_model,
-        via_device=(DOMAIN, unique_host_id),
-    )
-
-    # check if device is in device_registry
-    device = device_registry.async_get_device(identifiers, set())
-    if device:
-        return False
-    device_registry.async_get_or_create(**device_data)
 
     # add device to config_entry
     device_config = {

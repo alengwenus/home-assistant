@@ -1607,7 +1607,11 @@ pyownet==0.10.0.post1
 pypca==0.0.7
 
 # homeassistant.components.lcn
+<<<<<<< HEAD
 pypck==0.7.4
+=======
+pypck==0.7.0
+>>>>>>> Bump to pypck0.7.0
 
 # homeassistant.components.pjlink
 pypjlink2==1.2.1

@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import (
     CONF_DEVICES,
+    CONF_ENTITIES,
     CONF_HOST,
     CONF_IP_ADDRESS,
     CONF_PASSWORD,
@@ -97,6 +98,7 @@ class LcnFlowHandler(config_entries.ConfigFlow):
 
         user_input["unique_id"] = generate_unique_id(user_input[CONF_HOST])
         user_input[CONF_DEVICES] = []
+        user_input[CONF_ENTITIES] = []
 
         return self.async_create_entry(title=user_input[CONF_HOST], data=user_input)
 

@@ -65,6 +65,7 @@ from .const import (
 )
 from .helpers import (
     async_update_device_registry,
+    async_update_lcn_device_names,
     async_update_lcn_device_serials,
     has_unique_host_names,
     import_lcn_config,
@@ -272,6 +273,12 @@ async def async_setup_entry(hass, config_entry):
         await hass.async_create_task(
             async_update_lcn_device_serials(hass, config_entry)
         )
+
+        if config_entry.source == config_entries.SOURCE_IMPORT:
+            await hass.async_create_task(
+                async_update_lcn_device_names(hass, config_entry)
+            )
+            config_entry.source = config_entries.SOURCE_USER
 
         # forward config_entry to platforms
         hass.async_add_job(

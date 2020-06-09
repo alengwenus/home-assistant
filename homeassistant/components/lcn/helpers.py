@@ -281,6 +281,30 @@ async def async_update_lcn_device_serials(hass, config_entry):
     hass.config_entries.async_update_entry(config_entry)
 
 
+async def async_update_lcn_device_names(hass, config_entry):
+    """Request device serials from LCN modules and updates config_entry."""
+    host_name = config_entry.data[CONF_HOST]
+    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
+    for device_config in config_entry.data[CONF_DEVICES]:
+        if device_config[CONF_IS_GROUP]:
+            device_name = f"Group  {device_config[CONF_ADDRESS_ID]:d}"
+        else:
+            addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+            # get module info
+            device_connection = lcn_connection.get_address_conn(addr)
+            try:
+                await asyncio.wait_for(device_connection.serial_known, timeout=3)
+            except asyncio.TimeoutError:
+                continue
+
+            device_name = await device_connection.request_name()
+
+        device_config[CONF_NAME] = device_name
+
+    # schedule config_entry for save
+    hass.config_entries.async_update_entry(config_entry)
+
+
 def get_config_entry(hass, host):
     """Return the config_entry with given host."""
     return next(

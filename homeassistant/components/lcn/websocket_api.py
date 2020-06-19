@@ -30,6 +30,7 @@ from .const import (
     RELAY_PORTS,
 )
 from .helpers import (  # async_register_lcn_address_devices,
+    async_update_lcn_address_devices,
     generate_unique_id,
     get_config_entry,
     get_device_address,
@@ -161,8 +162,8 @@ async def websocket_scan_devices(hass, connection, msg):
     # schedule config_entry for save
     hass.config_entries.async_update_entry(config_entry)
 
-    # create new devices
-    # await hass.async_create_task(async_register_lcn_address_devices(hass, config_entry))
+    # create/update devices in device regsitry
+    await hass.async_create_task(async_update_lcn_address_devices(hass, config_entry))
 
     connection.send_result(msg[ID], config_entry.data[CONF_DEVICES])
 
@@ -192,6 +193,9 @@ async def websocket_add_device(hass, connection, msg):
 
     # schedule config_entry for save
     hass.config_entries.async_update_entry(config_entry)
+
+    # create/update devices in device regsitry
+    await hass.async_create_task(async_update_lcn_address_devices(hass, config_entry))
 
     # return the device config, not all devices !!!
     connection.send_result(msg[ID], result)

@@ -45,7 +45,13 @@ class LcnEntity(Entity):
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
-        self.address_connection.register_for_inputs(self.input_received)
+        self.unregister_for_inputs = self.address_connection.register_for_inputs(
+            self.input_received
+        )
+
+    async def async_will_remove_from_hass(self):
+        """Run when entity will be removed from hass."""
+        self.unregister_for_inputs()
 
     @property
     def name(self):

@@ -171,7 +171,7 @@ def import_lcn_config(lcn_config):
 #
 
 
-async def async_register_lcn_host_device(hass, config_entry):
+async def async_update_lcn_host_device(hass, config_entry):
     """Register LCN host for given config_entry."""
     device_registry = await dr.async_get_registry(hass)
     host_name = config_entry.data[CONF_HOST]
@@ -195,7 +195,7 @@ async def async_register_lcn_host_device(hass, config_entry):
         )
 
 
-async def async_register_lcn_address_devices(hass, config_entry):
+async def async_update_lcn_address_devices(hass, config_entry):
     """Register LCN modules and groups defined in config_entry as devices.
 
     The name of all given address_connections is collected and the devices
@@ -237,10 +237,10 @@ async def async_register_lcn_address_devices(hass, config_entry):
             )
 
 
-async def async_update_device_registry(hass, config_entry):
-    """Register LCN host and all devices for given config_entry in DeviceRegistry."""
-    await async_register_lcn_host_device(hass, config_entry)
-    await async_register_lcn_address_devices(hass, config_entry)
+# async def async_update_device_registry(hass, config_entry):
+#     """Register LCN host and all devices for given config_entry in DeviceRegistry."""
+#     await async_register_lcn_host_device(hass, config_entry)
+#     await async_register_lcn_address_devices(hass, config_entry)
 
 
 #
@@ -280,6 +280,9 @@ async def async_update_lcn_device_serials(hass, config_entry):
     # schedule config_entry for save
     hass.config_entries.async_update_entry(config_entry)
 
+    # update device registry
+    await async_update_lcn_address_devices(hass, config_entry)
+
 
 async def async_update_lcn_device_names(hass, config_entry):
     """Request device serials from LCN modules and updates config_entry."""
@@ -303,6 +306,9 @@ async def async_update_lcn_device_names(hass, config_entry):
 
     # schedule config_entry for save
     hass.config_entries.async_update_entry(config_entry)
+
+    # update device registry
+    await async_update_lcn_address_devices(hass, config_entry)
 
 
 def get_config_entry(hass, host):

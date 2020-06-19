@@ -64,9 +64,10 @@ from .const import (
     VARIABLES,
 )
 from .helpers import (
-    async_update_device_registry,
+    async_update_lcn_address_devices,
     async_update_lcn_device_names,
     async_update_lcn_device_serials,
+    async_update_lcn_host_device,
     has_unique_host_names,
     import_lcn_config,
     is_address,
@@ -267,7 +268,12 @@ async def async_setup_entry(hass, config_entry):
 
         # Update DeviceRegistry whenever ConfigEntry gets updated
         # to keep both in sync.
-        config_entry.add_update_listener(async_update_device_registry)
+        # config_entry.add_update_listener(async_update_device_registry)
+
+        await hass.async_create_task(async_update_lcn_host_device(hass, config_entry))
+        await hass.async_create_task(
+            async_update_lcn_address_devices(hass, config_entry)
+        )
 
         # update config_entry with LCN device serials
         await hass.async_create_task(

@@ -15,7 +15,7 @@ from homeassistant.const import (
     CONF_PORT,
 )
 from homeassistant.core import callback
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
@@ -255,34 +255,40 @@ async def websocket_add_entity(hass, connection, msg):
         (msg[ATTR_DOMAIN], msg[ATTR_DOMAIN_DATA]),
     )
 
-    entity_config = {
-        ATTR_UNIQUE_ID: unique_id,
-        "unique_device_id": msg["unique_device_id"],
-        CONF_NAME: msg[ATTR_NAME],
-        ATTR_RESOURCE: unique_id.split(".", 4)[4],
-        ATTR_DOMAIN: msg[ATTR_DOMAIN],
-        ATTR_DOMAIN_DATA: msg[ATTR_DOMAIN_DATA],
-    }
+    entity_registry = await er.async_get_registry(hass)
+    entity_id = entity_registry.async_get_entity_id(msg[ATTR_DOMAIN], DOMAIN, unique_id)
+    if entity_id:
+        result = False
+    else:
+        entity_config = {
+            ATTR_UNIQUE_ID: unique_id,
+            "unique_device_id": msg["unique_device_id"],
+            CONF_NAME: msg[ATTR_NAME],
+            ATTR_RESOURCE: unique_id.split(".", 4)[4],
+            ATTR_DOMAIN: msg[ATTR_DOMAIN],
+            ATTR_DOMAIN_DATA: msg[ATTR_DOMAIN_DATA],
+        }
 
-    # Create new entity and add to corresponding component
-    entity = create_lcn_switch_entity(hass, entity_config, config_entry)
+        # Create new entity and add to corresponding component
+        entity = create_lcn_switch_entity(hass, entity_config, config_entry)
 
-    component = hass.data[msg[ATTR_DOMAIN]]
-    platform = component._platforms[config_entry.entry_id]
+        component = hass.data[msg[ATTR_DOMAIN]]
+        platform = component._platforms[config_entry.entry_id]
 
-    hass.async_add_job(platform.async_add_entities([entity]))
+        abc = await hass.async_add_job(platform.async_add_entities([entity]))
+        print(abc)
 
-    # Add entity config to config_entry
-    config_entry.data[CONF_ENTITIES].append(entity_config)
+        # Add entity config to config_entry
+        config_entry.data[CONF_ENTITIES].append(entity_config)
 
-    # sort config_entry
-    sort_lcn_config_entry(config_entry)
+        # sort config_entry
+        sort_lcn_config_entry(config_entry)
 
-    # schedule config_entry for save
-    hass.config_entries.async_update_entry(config_entry)
+        # schedule config_entry for save
+        hass.config_entries.async_update_entry(config_entry)
 
-    # return the device config, not all devices !!!
-    result = True
+        result = True
+
     connection.send_result(msg[ID], result)
 
 

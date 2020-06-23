@@ -56,9 +56,9 @@ class LcnServiceCall:
         """Initialize service call."""
         self.connections = hass.data[DATA_LCN][CONF_CONNECTIONS]
 
-    def get_address_connection(self, call):
+    def get_address_connection(self, hass):
         """Get address connection object."""
-        addr, connection_id = call.data[CONF_ADDRESS]
+        addr, connection_id = hass.data[CONF_ADDRESS]
         addr = pypck.lcn_addr.LcnAddr(*addr)
         if connection_id is None:
             connection = self.connections[0]
@@ -83,15 +83,15 @@ class OutputAbs(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        output = pypck.lcn_defs.OutputPort[call.data[CONF_OUTPUT]]
-        brightness = call.data[CONF_BRIGHTNESS]
+        output = pypck.lcn_defs.OutputPort[hass.data[CONF_OUTPUT]]
+        brightness = hass.data[CONF_BRIGHTNESS]
         transition = pypck.lcn_defs.time_to_ramp_value(
-            call.data[CONF_TRANSITION] * 1000
+            hass.data[CONF_TRANSITION] * 1000
         )
 
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.dim_output(output.value, brightness, transition)
 
 
@@ -107,12 +107,12 @@ class OutputRel(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        output = pypck.lcn_defs.OutputPort[call.data[CONF_OUTPUT]]
-        brightness = call.data[CONF_BRIGHTNESS]
+        output = pypck.lcn_defs.OutputPort[hass.data[CONF_OUTPUT]]
+        brightness = hass.data[CONF_BRIGHTNESS]
 
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.rel_output(output.value, brightness)
 
 
@@ -128,14 +128,14 @@ class OutputToggle(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        output = pypck.lcn_defs.OutputPort[call.data[CONF_OUTPUT]]
+        output = pypck.lcn_defs.OutputPort[hass.data[CONF_OUTPUT]]
         transition = pypck.lcn_defs.time_to_ramp_value(
-            call.data[CONF_TRANSITION] * 1000
+            hass.data[CONF_TRANSITION] * 1000
         )
 
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.toggle_output(output.value, transition)
 
 
@@ -146,13 +146,13 @@ class Relays(LcnServiceCall):
         {vol.Required(CONF_STATE): is_relays_states_string}
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
         states = [
-            pypck.lcn_defs.RelayStateModifier[state] for state in call.data[CONF_STATE]
+            pypck.lcn_defs.RelayStateModifier[state] for state in hass.data[CONF_STATE]
         ]
 
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.control_relays(states)
 
 
@@ -166,12 +166,12 @@ class Led(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        led = pypck.lcn_defs.LedPort[call.data[CONF_LED]]
-        led_state = pypck.lcn_defs.LedStatus[call.data[CONF_STATE]]
+        led = pypck.lcn_defs.LedPort[hass.data[CONF_LED]]
+        led_state = pypck.lcn_defs.LedStatus[hass.data[CONF_STATE]]
 
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.control_led(led, led_state)
 
 
@@ -194,13 +194,13 @@ class VarAbs(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        var = pypck.lcn_defs.Var[call.data[CONF_VARIABLE]]
-        value = call.data[CONF_VALUE]
-        unit = pypck.lcn_defs.VarUnit.parse(call.data[CONF_UNIT_OF_MEASUREMENT])
+        var = pypck.lcn_defs.Var[hass.data[CONF_VARIABLE]]
+        value = hass.data[CONF_VALUE]
+        unit = pypck.lcn_defs.VarUnit.parse(hass.data[CONF_UNIT_OF_MEASUREMENT])
 
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.var_abs(var, value, unit)
 
 
@@ -211,11 +211,11 @@ class VarReset(LcnServiceCall):
         {vol.Required(CONF_VARIABLE): vol.All(vol.Upper, vol.In(VARIABLES + SETPOINTS))}
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        var = pypck.lcn_defs.Var[call.data[CONF_VARIABLE]]
+        var = pypck.lcn_defs.Var[hass.data[CONF_VARIABLE]]
 
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.var_reset(var)
 
 
@@ -237,14 +237,14 @@ class VarRel(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        var = pypck.lcn_defs.Var[call.data[CONF_VARIABLE]]
-        value = call.data[CONF_VALUE]
-        unit = pypck.lcn_defs.VarUnit.parse(call.data[CONF_UNIT_OF_MEASUREMENT])
-        value_ref = pypck.lcn_defs.RelVarRef[call.data[CONF_RELVARREF]]
+        var = pypck.lcn_defs.Var[hass.data[CONF_VARIABLE]]
+        value = hass.data[CONF_VALUE]
+        unit = pypck.lcn_defs.VarUnit.parse(hass.data[CONF_UNIT_OF_MEASUREMENT])
+        value_ref = pypck.lcn_defs.RelVarRef[hass.data[CONF_RELVARREF]]
 
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.var_rel(var, value, unit, value_ref)
 
 
@@ -258,13 +258,13 @@ class LockRegulator(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        setpoint = pypck.lcn_defs.Var[call.data[CONF_SETPOINT]]
-        state = call.data[CONF_STATE]
+        setpoint = pypck.lcn_defs.Var[hass.data[CONF_SETPOINT]]
+        state = hass.data[CONF_STATE]
 
         reg_id = pypck.lcn_defs.Var.to_set_point_id(setpoint)
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.lock_regulator(reg_id, state)
 
 
@@ -286,30 +286,30 @@ class SendKeys(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
 
         keys = [[False] * 8 for i in range(4)]
 
-        key_strings = zip(call.data[CONF_KEYS][::2], call.data[CONF_KEYS][1::2])
+        key_strings = zip(hass.data[CONF_KEYS][::2], hass.data[CONF_KEYS][1::2])
 
         for table, key in key_strings:
             table_id = ord(table) - 65
             key_id = int(key) - 1
             keys[table_id][key_id] = True
 
-        delay_time = call.data[CONF_TIME]
+        delay_time = hass.data[CONF_TIME]
         if delay_time != 0:
             hit = pypck.lcn_defs.SendKeyCommand.HIT
-            if pypck.lcn_defs.SendKeyCommand[call.data[CONF_STATE]] != hit:
+            if pypck.lcn_defs.SendKeyCommand[hass.data[CONF_STATE]] != hit:
                 raise ValueError(
                     "Only hit command is allowed when sending deferred keys."
                 )
-            delay_unit = pypck.lcn_defs.TimeUnit.parse(call.data[CONF_TIME_UNIT])
+            delay_unit = pypck.lcn_defs.TimeUnit.parse(hass.data[CONF_TIME_UNIT])
             address_connection.send_keys_hit_deferred(keys, delay_time, delay_unit)
         else:
-            state = pypck.lcn_defs.SendKeyCommand[call.data[CONF_STATE]]
+            state = pypck.lcn_defs.SendKeyCommand[hass.data[CONF_STATE]]
             address_connection.send_keys(keys, state)
 
 
@@ -329,23 +329,23 @@ class LockKeys(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
 
         states = [
             pypck.lcn_defs.KeyLockStateModifier[state]
-            for state in call.data[CONF_STATE]
+            for state in hass.data[CONF_STATE]
         ]
-        table_id = ord(call.data[CONF_TABLE]) - 65
+        table_id = ord(hass.data[CONF_TABLE]) - 65
 
-        delay_time = call.data[CONF_TIME]
+        delay_time = hass.data[CONF_TIME]
         if delay_time != 0:
             if table_id != 0:
                 raise ValueError(
                     "Only table A is allowed when locking keys for a specific time."
                 )
-            delay_unit = pypck.lcn_defs.TimeUnit.parse(call.data[CONF_TIME_UNIT])
+            delay_unit = pypck.lcn_defs.TimeUnit.parse(hass.data[CONF_TIME_UNIT])
             address_connection.lock_keys_tab_a_temporary(delay_time, delay_unit, states)
         else:
             address_connection.lock_keys(table_id, states)
@@ -363,12 +363,12 @@ class DynText(LcnServiceCall):
         }
     )
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        row_id = call.data[CONF_ROW] - 1
-        text = call.data[CONF_TEXT]
+        row_id = hass.data[CONF_ROW] - 1
+        text = hass.data[CONF_TEXT]
 
-        address_connection = self.get_address_connection(call)
+        address_connection = self.get_address_connection(hass)
         address_connection.dyn_text(row_id, text)
 
 
@@ -377,8 +377,8 @@ class Pck(LcnServiceCall):
 
     schema = LcnServiceCall.schema.extend({vol.Required(CONF_PCK): str})
 
-    def __call__(self, call):
+    def __call__(self, hass):
         """Execute service call."""
-        pck = call.data[CONF_PCK]
-        address_connection = self.get_address_connection(call)
+        pck = hass.data[CONF_PCK]
+        address_connection = self.get_address_connection(hass)
         address_connection.pck(pck)

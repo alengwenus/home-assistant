@@ -370,17 +370,17 @@ async def get_address_connections_from_config_entry(hass, config_entry):
     return address_connections
 
 
-# def get_connection(hosts, host_name=None):
-#     """Return the connection object from list."""
-#     if host_name is None:
-#         host = hosts[0]
-#     else:
-#         for host in hosts:
-#             if host.host_name == host_name:
-#                 break
-#         else:
-#             raise ValueError("Unknown host_name.")
-#     return host
+def get_connection(hosts, host_name=None):
+    """Return the connection object from list."""
+    if host_name is None:
+        host = hosts[0]
+    else:
+        for host in hosts:
+            if host.host_name == host_name:
+                break
+        else:
+            raise ValueError("Unknown host_name.")
+    return host
 
 
 def has_unique_host_names(hosts):

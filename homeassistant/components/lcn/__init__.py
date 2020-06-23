@@ -72,10 +72,21 @@ from .helpers import (
     import_lcn_config,
     is_address,
 )
-
-# from .services import (DynText, Led, LockKeys, LockRegulator, OutputAbs,
-#                        OutputRel, OutputToggle, Pck, Relays, SendKeys, VarAbs,
-#                        VarRel, VarReset)
+from .services import (
+    DynText,
+    Led,
+    LockKeys,
+    LockRegulator,
+    OutputAbs,
+    OutputRel,
+    OutputToggle,
+    Pck,
+    Relays,
+    SendKeys,
+    VarAbs,
+    VarRel,
+    VarReset,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -286,10 +297,11 @@ async def async_setup_entry(hass, config_entry):
             )
             config_entry.source = config_entries.SOURCE_USER
 
-        # forward config_entry to platforms
-        hass.async_add_job(
-            hass.config_entries.async_forward_entry_setup(config_entry, "switch")
-        )
+        # forward config_entry to components
+        for domain in ["light", "switch"]:
+            hass.async_add_job(
+                hass.config_entries.async_forward_entry_setup(config_entry, domain)
+            )
 
     # load the wepsocket api
     wsapi.async_load_websocket_api(hass)
@@ -317,6 +329,26 @@ async def async_setup(hass, config):
     if CONF_CONNECTIONS not in hass.data[DATA_LCN]:
         hass.data[DATA_LCN][CONF_CONNECTIONS] = {}
 
+    # register service calls
+    for service_name, service in (
+        ("output_abs", OutputAbs),
+        ("output_rel", OutputRel),
+        ("output_toggle", OutputToggle),
+        ("relays", Relays),
+        ("var_abs", VarAbs),
+        ("var_reset", VarReset),
+        ("var_rel", VarRel),
+        ("lock_regulator", LockRegulator),
+        ("led", Led),
+        ("send_keys", SendKeys),
+        ("lock_keys", LockKeys),
+        ("dyn_text", DynText),
+        ("pck", Pck),
+    ):
+        hass.services.async_register(
+            DOMAIN, service_name, service(hass), service.schema
+        )
+
     if DOMAIN not in config:
         return True
 
@@ -332,25 +364,5 @@ async def async_setup(hass, config):
                 data=config_entry_data,
             )
         )
-
-    # # register service calls
-    # for service_name, service in (
-    #     ("output_abs", OutputAbs),
-    #     ("output_rel", OutputRel),
-    #     ("output_toggle", OutputToggle),
-    #     ("relays", Relays),
-    #     ("var_abs", VarAbs),
-    #     ("var_reset", VarReset),
-    #     ("var_rel", VarRel),
-    #     ("lock_regulator", LockRegulator),
-    #     ("led", Led),
-    #     ("send_keys", SendKeys),
-    #     ("lock_keys", LockKeys),
-    #     ("dyn_text", DynText),
-    #     ("pck", Pck),
-    # ):
-    #     hass.services.async_register(
-    #         DOMAIN, service_name, service(hass), service.schema
-    #     )
 
     return True

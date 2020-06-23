@@ -4,60 +4,67 @@ import pypck
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_TRANSITION,
+    DOMAIN as DOMAIN_LIGHT,
     SUPPORT_BRIGHTNESS,
     SUPPORT_TRANSITION,
     LightEntity,
 )
-from homeassistant.const import CONF_ADDRESS
+from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES, CONF_HOST
 
-from . import LcnDevice
 from .const import (
     CONF_CONNECTIONS,
     CONF_DIMMABLE,
+    CONF_DOMAIN_DATA,
     CONF_OUTPUT,
     CONF_TRANSITION,
+    CONF_UNIQUE_DEVICE_ID,
     DATA_LCN,
     OUTPUT_PORTS,
 )
-from .helpers import get_connection
+from .helpers import get_device_address, get_device_config
+from .lcn_entity import LcnEntity
 
 
-async def async_setup_platform(
-    hass, hass_config, async_add_entities, discovery_info=None
-):
-    """Set up the LCN light platform."""
-    if discovery_info is None:
-        return
-
-    devices = []
-    for config in discovery_info:
-        address, connection_id = config[CONF_ADDRESS]
-        addr = pypck.lcn_addr.LcnAddr(*address)
-        connections = hass.data[DATA_LCN][CONF_CONNECTIONS]
-        connection = get_connection(connections, connection_id)
-        address_connection = connection.get_address_conn(addr)
-
-        if config[CONF_OUTPUT] in OUTPUT_PORTS:
-            device = LcnOutputLight(config, address_connection)
-        else:  # in RELAY_PORTS
-            device = LcnRelayLight(config, address_connection)
-
-        devices.append(device)
-
-    async_add_entities(devices)
+def create_lcn_light_entity(hass, entity_config, config_entry):
+    """Set up an entity for this domain."""
+    host_name = config_entry.data[CONF_HOST]
+    host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
+    device_config = get_device_config(
+        entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
+    )
+    addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+    device_connection = host.get_address_conn(addr)
+    if entity_config[CONF_DOMAIN_DATA][CONF_OUTPUT] in OUTPUT_PORTS:
+        entity = LcnOutputLight(entity_config, device_connection)
+    else:  # in RELAY_PORTS
+        entity = LcnRelayLight(entity_config, device_connection)
+    return entity
 
 
-class LcnOutputLight(LcnDevice, LightEntity):
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    """Set up LCN light entities from a config entry."""
+    entities = []
+
+    for entity_config in config_entry.data[CONF_ENTITIES]:
+        if entity_config[CONF_DOMAIN] == DOMAIN_LIGHT:
+            entities.append(create_lcn_light_entity(hass, entity_config, config_entry))
+
+    async_add_entities(entities)
+
+
+class LcnOutputLight(LcnEntity, LightEntity):
     """Representation of a LCN light for output ports."""
 
     def __init__(self, config, address_connection):
         """Initialize the LCN light."""
         super().__init__(config, address_connection)
 
-        self.output = pypck.lcn_defs.OutputPort[config[CONF_OUTPUT]]
+        self.output = pypck.lcn_defs.OutputPort[config[CONF_DOMAIN_DATA][CONF_OUTPUT]]
 
-        self._transition = pypck.lcn_defs.time_to_ramp_value(config[CONF_TRANSITION])
-        self.dimmable = config[CONF_DIMMABLE]
+        self._transition = pypck.lcn_defs.time_to_ramp_value(
+            config[CONF_DOMAIN_DATA][CONF_TRANSITION]
+        )
+        self.dimmable = config[CONF_DOMAIN_DATA][CONF_DIMMABLE]
 
         self._brightness = 255
         self._is_on = None
@@ -67,6 +74,11 @@ class LcnOutputLight(LcnDevice, LightEntity):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
         await self.address_connection.activate_status_request_handler(self.output)
+
+    async def async_will_remove_from_hass(self):
+        """Run when entity will be removed from hass."""
+        await super().async_will_remove_from_hass()
+        await self.address_connection.cancel_status_request_handler(self.output)
 
     @property
     def supported_features(self):
@@ -134,14 +146,14 @@ class LcnOutputLight(LcnDevice, LightEntity):
         self.async_write_ha_state()
 
 
-class LcnRelayLight(LcnDevice, LightEntity):
+class LcnRelayLight(LcnEntity, LightEntity):
     """Representation of a LCN light for relay ports."""
 
     def __init__(self, config, address_connection):
         """Initialize the LCN light."""
         super().__init__(config, address_connection)
 
-        self.output = pypck.lcn_defs.RelayPort[config[CONF_OUTPUT]]
+        self.output = pypck.lcn_defs.RelayPort[config[CONF_DOMAIN_DATA][CONF_OUTPUT]]
 
         self._is_on = None
 
@@ -149,6 +161,12 @@ class LcnRelayLight(LcnDevice, LightEntity):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
         await self.address_connection.activate_status_request_handler(self.output)
+
+    async def async_will_remove_from_hass(self):
+        """Run when entity will be removed from hass."""
+        await super().async_will_remove_from_hass()
+        if not self.address_connection.is_group():
+            await self.address_connection.cancel_status_request_handler(self.output)
 
     @property
     def is_on(self):

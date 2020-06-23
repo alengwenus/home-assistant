@@ -1,7 +1,7 @@
 """Support for LCN switches."""
 import pypck
 
-from homeassistant.components.switch import DOMAIN, SwitchEntity
+from homeassistant.components.switch import DOMAIN as DOMAIN_SWITCH, SwitchEntity
 from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES, CONF_HOST
 
 from .const import (
@@ -37,7 +37,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     entities = []
 
     for entity_config in config_entry.data[CONF_ENTITIES]:
-        if entity_config[CONF_DOMAIN] == DOMAIN:
+        if entity_config[CONF_DOMAIN] == DOMAIN_SWITCH:
             entities.append(create_lcn_switch_entity(hass, entity_config, config_entry))
 
     async_add_entities(entities)

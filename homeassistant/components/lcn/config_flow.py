@@ -80,9 +80,9 @@ class LcnFlowHandler(config_entries.ConfigFlow):
         try:
             # set a unique_id for this config flow
             # (alternatively return already existing entry)
-            entry = await self.async_set_unique_id(user_input[CONF_HOST])
-            if entry:
-                return self.async_abort(reason="already_configured")
+            # entry = await self.async_set_unique_id(user_input[CONF_HOST])
+            # if entry:
+            #     return self.async_abort(reason="already_configured")
             await _validate_connection(self.hass, user_input)
         except pypck.connection.PchkAuthenticationError:
             return self.async_abort(reason="authentication_error")
@@ -104,6 +104,7 @@ class LcnFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_import(self, info):
         """Import existing configuration from LCN."""
+        # check if we already have a host with the same name configured
         entry = await self.async_set_unique_id(info[CONF_HOST])
         if entry:
             await self.hass.config_entries.async_remove(entry.entry_id)

@@ -85,7 +85,7 @@ def generate_unique_id(
                 resource = f'{domain_data["register"]}.{domain_data["scene"]}'
             else:
                 raise ValueError("Unknown domain.")
-            unique_id += f".{domain_name}.{resource}".lower()
+            unique_id += f"-{domain_name}-{resource}".lower()
     return unique_id
 
 
@@ -162,7 +162,7 @@ def import_lcn_config(lcn_config):
                     CONF_UNIQUE_ID: unique_entity_id,
                     CONF_UNIQUE_DEVICE_ID: unique_device_id,
                     CONF_NAME: entity_name,
-                    CONF_RESOURCE: unique_entity_id.split(".", 2)[2],
+                    CONF_RESOURCE: unique_entity_id.split("-", 2)[2],
                     CONF_DOMAIN: DOMAIN_LOOKUP[domain_name],
                     CONF_DOMAIN_DATA: domain_data.copy(),
                 }
@@ -324,13 +324,14 @@ async def async_update_lcn_device_names(hass, config_entry):
     await async_update_lcn_address_devices(hass, config_entry)
 
 
-def get_config_entry(hass, host):
+def get_config_entry(hass, host_id):
     """Return the config_entry with given host."""
-    return next(
-        config_entry
-        for config_entry in hass.config_entries.async_entries(DOMAIN)
-        if config_entry.data[CONF_HOST] == host
-    )
+    return hass.config_entries.async_get_entry(host_id)
+    # return next(
+    #     config_entry
+    #     for config_entry in hass.config_entries.async_entries(DOMAIN)
+    #     if config_entry.data[CONF_HOST] == host
+    # )
 
 
 def get_device_config(unique_device_id, config_entry):

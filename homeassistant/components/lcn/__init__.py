@@ -298,16 +298,15 @@ async def async_setup_entry(hass, config_entry):
                 async_update_lcn_device_names(hass, config_entry)
             )
             config_entry.source = config_entries.SOURCE_USER
-        return True
 
         # forward config_entry to components
         for domain in [
-            "binary_sensor",
-            "climate",
-            "cover",
-            "light",
-            "scene",
-            "sensor",
+            # "binary_sensor",
+            # "climate",
+            # "cover",
+            # "light",
+            # "scene",
+            # "sensor",
             "switch",
         ]:
             hass.async_add_job(

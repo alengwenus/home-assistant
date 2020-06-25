@@ -10,6 +10,7 @@ from homeassistant.const import (
     CONF_DEVICES,
     CONF_ENTITIES,
     CONF_HOST,
+    CONF_ID,
     CONF_IP_ADDRESS,
     CONF_NAME,
     CONF_PORT,
@@ -42,6 +43,7 @@ from .switch import create_lcn_switch_entity
 TYPE = "type"
 ID = "id"
 ATTR_HOST = "host"
+ATTR_HOST_ID = "host_id"
 ATTR_NAME = "name"
 ATTR_UNIQUE_ID = "unique_id"
 ATTR_RESOURCE = "resource"
@@ -74,7 +76,8 @@ async def websocket_get_hosts(hass, connection, msg):
 
     hosts = [
         {
-            CONF_NAME: config_entry.data[CONF_HOST],
+            CONF_NAME: config_entry.title,
+            CONF_ID: config_entry.entry_id,
             CONF_IP_ADDRESS: config_entry.data[CONF_IP_ADDRESS],
             CONF_PORT: config_entry.data[CONF_PORT],
         }
@@ -87,11 +90,11 @@ async def websocket_get_hosts(hass, connection, msg):
 @websocket_api.require_admin
 @websocket_api.async_response
 @websocket_api.websocket_command(
-    {vol.Required(TYPE): "lcn/devices", vol.Required(ATTR_HOST): cv.string}
+    {vol.Required(TYPE): "lcn/devices", vol.Required(ATTR_HOST_ID): cv.string}
 )
 async def websocket_get_device_configs(hass, connection, msg):
     """Get device configs."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST])
+    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
     sort_lcn_config_entry(config_entry)
     connection.send_result(msg[ID], config_entry.data[CONF_DEVICES])
 

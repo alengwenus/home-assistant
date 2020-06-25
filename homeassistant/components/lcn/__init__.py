@@ -298,7 +298,7 @@ async def async_setup_entry(hass, config_entry):
             config_entry.source = config_entries.SOURCE_USER
 
         # forward config_entry to components
-        for domain in ["climate", "cover", "light", "scene", "switch"]:
+        for domain in ["climate", "cover", "light", "scene", "sensor", "switch"]:
             hass.async_add_job(
                 hass.config_entries.async_forward_entry_setup(config_entry, domain)
             )

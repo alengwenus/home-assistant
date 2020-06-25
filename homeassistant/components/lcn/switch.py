@@ -57,12 +57,14 @@ class LcnOutputSwitch(LcnEntity, SwitchEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        await self.address_connection.activate_status_request_handler(self.output)
+        if not self.address_connection.is_group():
+            await self.address_connection.activate_status_request_handler(self.output)
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
-        await self.address_connection.cancel_status_request_handler(self.output)
+        if not self.address_connection.is_group():
+            await self.address_connection.cancel_status_request_handler(self.output)
 
     @property
     def is_on(self):

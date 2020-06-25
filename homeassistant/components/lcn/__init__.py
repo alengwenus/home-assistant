@@ -144,7 +144,7 @@ SCENES_SCHEMA = vol.Schema(
         vol.Required(CONF_ADDRESS): is_address,
         vol.Required(CONF_REGISTER): vol.All(vol.Coerce(int), vol.Range(0, 9)),
         vol.Required(CONF_SCENE): vol.All(vol.Coerce(int), vol.Range(0, 9)),
-        vol.Optional(CONF_OUTPUTS): vol.All(
+        vol.Optional(CONF_OUTPUTS, default=[]): vol.All(
             cv.ensure_list, [vol.All(vol.Upper, vol.In(OUTPUT_PORTS + RELAY_PORTS))]
         ),
         vol.Optional(CONF_TRANSITION, default=None): vol.Any(
@@ -298,7 +298,7 @@ async def async_setup_entry(hass, config_entry):
             config_entry.source = config_entries.SOURCE_USER
 
         # forward config_entry to components
-        for domain in ["light", "switch", "climate", "cover"]:
+        for domain in ["climate", "cover", "light", "scene", "switch"]:
             hass.async_add_job(
                 hass.config_entries.async_forward_entry_setup(config_entry, domain)
             )

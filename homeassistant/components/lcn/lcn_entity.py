@@ -60,4 +60,3 @@ class LcnEntity(Entity):
 
     def input_received(self, input_obj):
         """Set state/value when LCN input object (command) is received."""
-        raise NotImplementedError("Pure virtual function.")

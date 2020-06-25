@@ -52,7 +52,7 @@ DOMAIN_LOOKUP = {
     "climates": "climate",
     "covers": "cover",
     "lights": "light",
-    "scenses": "scene",
+    "scenes": "scene",
     "sensors": "sensor",
     "switches": "switch",
 }
@@ -79,7 +79,7 @@ def generate_unique_id(
                 resource = f'{domain_data["motor"]}'.lower()
             elif domain_name == "climate":
                 resource = f'{domain_data["setpoint"]}.{domain_data["source"]}'
-            elif domain_name == "scenes":
+            elif domain_name == "scene":
                 resource = f'{domain_data["register"]}.{domain_data["scene"]}'
             else:
                 raise ValueError("Unknown domain.")

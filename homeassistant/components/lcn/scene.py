@@ -3,67 +3,73 @@ from typing import Any
 
 import pypck
 
-from homeassistant.components.scene import Scene
-from homeassistant.const import CONF_ADDRESS
+from homeassistant.components.scene import DOMAIN as DOMAIN_SCENE, Scene
+from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES, CONF_HOST
 
-from . import LcnDevice
 from .const import (
     CONF_CONNECTIONS,
+    CONF_DOMAIN_DATA,
     CONF_OUTPUTS,
     CONF_REGISTER,
     CONF_SCENE,
     CONF_TRANSITION,
+    CONF_UNIQUE_DEVICE_ID,
     DATA_LCN,
     OUTPUT_PORTS,
 )
-from .helpers import get_connection
+from .helpers import get_device_address, get_device_config
+from .lcn_entity import LcnEntity
 
 
-async def async_setup_platform(
-    hass, hass_config, async_add_entities, discovery_info=None
-):
-    """Set up the LCN scene platform."""
-    if discovery_info is None:
-        return
+def create_lcn_scene_entity(hass, entity_config, config_entry):
+    """Set up an entity for this domain."""
+    host_name = config_entry.data[CONF_HOST]
+    host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
+    device_config = get_device_config(
+        entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
+    )
+    addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+    device_connection = host.get_address_conn(addr)
+    entity = LcnScene(entity_config, device_connection)
 
-    devices = []
-    for config in discovery_info:
-        address, connection_id = config[CONF_ADDRESS]
-        addr = pypck.lcn_addr.LcnAddr(*address)
-        connections = hass.data[DATA_LCN][CONF_CONNECTIONS]
-        connection = get_connection(connections, connection_id)
-        address_connection = connection.get_address_conn(addr)
-
-        devices.append(LcnScene(config, address_connection))
-
-    async_add_entities(devices)
+    return entity
 
 
-class LcnScene(LcnDevice, Scene):
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    """Set up LCN switch entities from a config entry."""
+    entities = []
+
+    for entity_config in config_entry.data[CONF_ENTITIES]:
+        if entity_config[CONF_DOMAIN] == DOMAIN_SCENE:
+            entities.append(create_lcn_scene_entity(hass, entity_config, config_entry))
+
+    async_add_entities(entities)
+
+
+class LcnScene(LcnEntity, Scene):
     """Representation of a LCN scene."""
 
     def __init__(self, config, address_connection):
         """Initialize the LCN scene."""
         super().__init__(config, address_connection)
 
-        self.register_id = config[CONF_REGISTER]
-        self.scene_id = config[CONF_SCENE]
+        self.register_id = config[CONF_DOMAIN_DATA][CONF_REGISTER]
+        self.scene_id = config[CONF_DOMAIN_DATA][CONF_SCENE]
         self.output_ports = []
         self.relay_ports = []
 
-        for port in config[CONF_OUTPUTS]:
+        for port in config[CONF_DOMAIN_DATA][CONF_OUTPUTS]:
             if port in OUTPUT_PORTS:
                 self.output_ports.append(pypck.lcn_defs.OutputPort[port])
             else:  # in RELEAY_PORTS
                 self.relay_ports.append(pypck.lcn_defs.RelayPort[port])
 
-        if config[CONF_TRANSITION] is None:
+        if config[CONF_DOMAIN_DATA][CONF_TRANSITION] is None:
             self.transition = None
         else:
-            self.transition = pypck.lcn_defs.time_to_ramp_value(config[CONF_TRANSITION])
-
-    async def async_added_to_hass(self):
-        """Run when entity about to be added to hass."""
+            self.transition = pypck.lcn_defs.time_to_ramp_value(
+                config[CONF_DOMAIN_DATA][CONF_TRANSITION]
+            )
 
     async def async_activate(self, **kwargs: Any) -> None:
         """Activate scene."""

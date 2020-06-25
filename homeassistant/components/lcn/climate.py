@@ -1,58 +1,78 @@
 """Support for LCN climate control."""
-
 import pypck
 
-from homeassistant.components.climate import ClimateEntity, const
-from homeassistant.const import ATTR_TEMPERATURE, CONF_ADDRESS, CONF_UNIT_OF_MEASUREMENT
+from homeassistant.components.climate import (
+    DOMAIN as DOMAIN_CLIMATE,
+    ClimateEntity,
+    const,
+)
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    CONF_DOMAIN,
+    CONF_ENTITIES,
+    CONF_HOST,
+    CONF_UNIT_OF_MEASUREMENT,
+)
 
-from . import LcnDevice
 from .const import (
     CONF_CONNECTIONS,
+    CONF_DOMAIN_DATA,
     CONF_LOCKABLE,
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
     CONF_SETPOINT,
     CONF_SOURCE,
+    CONF_UNIQUE_DEVICE_ID,
     DATA_LCN,
 )
-from .helpers import get_connection
+from .helpers import get_device_address, get_device_config
+from .lcn_entity import LcnEntity
 
 
-async def async_setup_platform(
-    hass, hass_config, async_add_entities, discovery_info=None
-):
-    """Set up the LCN climate platform."""
-    if discovery_info is None:
-        return
+def create_lcn_climate_entity(hass, entity_config, config_entry):
+    """Set up an entity for this domain."""
+    host_name = config_entry.data[CONF_HOST]
+    host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
+    device_config = get_device_config(
+        entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
+    )
+    addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+    device_connection = host.get_address_conn(addr)
 
-    devices = []
-    for config in discovery_info:
-        address, connection_id = config[CONF_ADDRESS]
-        addr = pypck.lcn_addr.LcnAddr(*address)
-        connections = hass.data[DATA_LCN][CONF_CONNECTIONS]
-        connection = get_connection(connections, connection_id)
-        address_connection = connection.get_address_conn(addr)
-
-        devices.append(LcnClimate(config, address_connection))
-
-    async_add_entities(devices)
+    entity = LcnClimate(entity_config, device_connection)
+    return entity
 
 
-class LcnClimate(LcnDevice, ClimateEntity):
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    """Set up LCN switch entities from a config entry."""
+    entities = []
+
+    for entity_config in config_entry.data[CONF_ENTITIES]:
+        if entity_config[CONF_DOMAIN] == DOMAIN_CLIMATE:
+            entities.append(
+                create_lcn_climate_entity(hass, entity_config, config_entry)
+            )
+
+    async_add_entities(entities)
+
+
+class LcnClimate(LcnEntity, ClimateEntity):
     """Representation of a LCN climate device."""
 
     def __init__(self, config, address_connection):
         """Initialize of a LCN climate device."""
         super().__init__(config, address_connection)
 
-        self.variable = pypck.lcn_defs.Var[config[CONF_SOURCE]]
-        self.setpoint = pypck.lcn_defs.Var[config[CONF_SETPOINT]]
-        self.unit = pypck.lcn_defs.VarUnit.parse(config[CONF_UNIT_OF_MEASUREMENT])
+        self.variable = pypck.lcn_defs.Var[config[CONF_DOMAIN_DATA][CONF_SOURCE]]
+        self.setpoint = pypck.lcn_defs.Var[config[CONF_DOMAIN_DATA][CONF_SETPOINT]]
+        self.unit = pypck.lcn_defs.VarUnit.parse(
+            config[CONF_DOMAIN_DATA][CONF_UNIT_OF_MEASUREMENT]
+        )
 
         self.regulator_id = pypck.lcn_defs.Var.to_set_point_id(self.setpoint)
-        self.is_lockable = config[CONF_LOCKABLE]
-        self._max_temp = config[CONF_MAX_TEMP]
-        self._min_temp = config[CONF_MIN_TEMP]
+        self.is_lockable = config[CONF_DOMAIN_DATA][CONF_LOCKABLE]
+        self._max_temp = config[CONF_DOMAIN_DATA][CONF_MAX_TEMP]
+        self._min_temp = config[CONF_DOMAIN_DATA][CONF_MIN_TEMP]
 
         self._current_temperature = None
         self._target_temperature = None
@@ -61,8 +81,16 @@ class LcnClimate(LcnDevice, ClimateEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        await self.address_connection.activate_status_request_handler(self.variable)
-        await self.address_connection.activate_status_request_handler(self.setpoint)
+        if not self.address_connection.is_group():
+            await self.address_connection.activate_status_request_handler(self.variable)
+            await self.address_connection.activate_status_request_handler(self.setpoint)
+
+    async def async_will_remove_from_hass(self):
+        """Run when entity will be removed from hass."""
+        await super().async_will_remove_from_hass()
+        if not self.address_connection.is_group():
+            await self.address_connection.cancel_status_request_handler(self.variable)
+            await self.address_connection.cancel_status_request_handler(self.setpoint)
 
     @property
     def supported_features(self):

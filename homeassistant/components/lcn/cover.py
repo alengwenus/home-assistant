@@ -68,12 +68,13 @@ class LcnOutputsCover(LcnEntity, CoverEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        await self.address_connection.activate_status_request_handler(
-            pypck.lcn_defs.OutputPort["OUTPUTUP"]
-        )
-        await self.address_connection.activate_status_request_handler(
-            pypck.lcn_defs.OutputPort["OUTPUTDOWN"]
-        )
+        if not self.address_connection.is_group():
+            await self.address_connection.activate_status_request_handler(
+                pypck.lcn_defs.OutputPort["OUTPUTUP"]
+            )
+            await self.address_connection.activate_status_request_handler(
+                pypck.lcn_defs.OutputPort["OUTPUTDOWN"]
+            )
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
@@ -174,7 +175,8 @@ class LcnRelayCover(LcnEntity, CoverEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        await self.address_connection.activate_status_request_handler(self.motor)
+        if not self.address_connection.is_group():
+            await self.address_connection.activate_status_request_handler(self.motor)
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""

@@ -72,18 +72,18 @@ def generate_unique_id(
         if domain_config:
             domain_name, domain_data = domain_config
             if domain_name in ["switch", "light"]:
-                resource = f'{domain_data["output"]}'.lower()
+                resource = f'{domain_data["output"]}'
             elif domain_name in ["binary_sensor", "sensor"]:
-                resource = f'{domain_data["source"]}'.lower()
+                resource = f'{domain_data["source"]}'
             elif domain_name == "cover":
-                resource = f'{domain_data["motor"]}'.lower()
+                resource = f'{domain_data["motor"]}'
             elif domain_name == "climate":
                 resource = f'{domain_data["setpoint"]}.{domain_data["source"]}'
             elif domain_name == "scene":
                 resource = f'{domain_data["register"]}.{domain_data["scene"]}'
             else:
                 raise ValueError("Unknown domain.")
-            unique_id += f".{domain_name}.{resource}"
+            unique_id += f".{domain_name}.{resource}".lower()
     return unique_id
 
 

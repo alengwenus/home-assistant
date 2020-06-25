@@ -18,13 +18,11 @@ from homeassistant.const import (
 import homeassistant.helpers.config_validation as cv
 
 from .const import CONF_DIM_MODE, CONF_SK_NUM_TRIES, DIM_MODES, DOMAIN
-from .helpers import generate_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def _validate_connection(hass, user_input):
-    name = user_input[CONF_HOST]
     host = user_input[CONF_IP_ADDRESS]
     port = user_input[CONF_PORT]
     username = user_input[CONF_USERNAME]
@@ -38,17 +36,11 @@ async def _validate_connection(hass, user_input):
     }
 
     connection = pypck.connection.PchkConnectionManager(
-        hass.loop,
-        host,
-        port,
-        username,
-        password,
-        settings=settings,
-        connection_id=name,
+        hass.loop, host, port, username, password, settings=settings
     )
 
     await connection.async_connect(timeout=5)
-    _LOGGER.debug('Validated: LCN connected to "%s"', name)
+    _LOGGER.debug("Validated: LCN connected.")
 
     await connection.async_close()
     return True
@@ -77,6 +69,8 @@ class LcnFlowHandler(config_entries.ConfigFlow):
                 step_id="user", data_schema=vol.Schema(data_schema)
             )
 
+        host_name = user_input.pop(CONF_HOST)
+
         try:
             # set a unique_id for this config flow
             # (alternatively return already existing entry)
@@ -91,25 +85,25 @@ class LcnFlowHandler(config_entries.ConfigFlow):
         except pypck.connection.PchkLcnNotConnectedError:
             return self.async_abort(reason="lcn_not_connected_error")
         except TimeoutError:
-            _LOGGER.error(
-                'Connection to PCHK server "%s" failed.', user_input[CONF_HOST]
-            )
+            _LOGGER.error('Connection to PCHK server "%s" failed.', host_name)
             return self.async_abort(reason="connection_timeout")
 
-        user_input["unique_id"] = generate_unique_id(user_input[CONF_HOST])
+        # user_input["unique_id"] = generate_unique_id(user_input[CONF_HOST])
         user_input[CONF_DEVICES] = []
         user_input[CONF_ENTITIES] = []
 
-        return self.async_create_entry(title=user_input[CONF_HOST], data=user_input)
+        return self.async_create_entry(title=host_name, data=user_input)
 
     async def async_step_import(self, info):
         """Import existing configuration from LCN."""
         # check if we already have a host with the same name configured
-        entry = await self.async_set_unique_id(info[CONF_HOST])
+        host_name = info.pop(CONF_HOST)
+        entry = await self.async_set_unique_id(host_name)
         if entry:
-            await self.hass.config_entries.async_remove(entry.entry_id)
+            # await self.hass.config_entries.async_remove(entry.entry_id)
+            self.hass.config_entries.async_update_entry(entry, data=info)
+            return self.async_abort(reason="existing_configuration_updated")
 
         return self.async_create_entry(
-            title="{} (import from configuration.yaml)".format(info[CONF_HOST]),
-            data=info,
+            title=f"{host_name} (import from configuration.yaml)", data=info,
         )

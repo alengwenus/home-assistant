@@ -59,16 +59,18 @@ DOMAIN_LOOKUP = {
 
 
 def generate_unique_id(
-    host_name,
+    # host_name,
     address=None,
     domain_config=None,  # (domain_name, domain_data)
-    platform=DOMAIN,
+    # platform=DOMAIN,
 ):
     """Generate a unique_id from the given parameters."""
-    unique_id = f"{platform}.{host_name}"
+    # unique_id = f"{platform}.{host_name}"
+    unique_id = ""
     if address:
         is_group = "g" if address[2] else "m"
-        unique_id += f".{is_group}{address[0]:03d}{address[1]:03d}"
+        unique_id += f"{is_group}{address[0]:03d}{address[1]:03d}"
+        # unique_id += f".{is_group}{address[0]:03d}{address[1]:03d}"
         if domain_config:
             domain_name, domain_data = domain_config
             if domain_name in ["switch", "light"]:
@@ -97,7 +99,7 @@ def import_lcn_config(lcn_config):
     data = {}
     for connection in lcn_config[CONF_CONNECTIONS]:
         host = {
-            CONF_UNIQUE_ID: generate_unique_id(connection[CONF_NAME]),
+            # CONF_UNIQUE_ID: generate_unique_id(connection[CONF_NAME]),
             CONF_HOST: connection[CONF_NAME],
             CONF_IP_ADDRESS: connection[CONF_HOST],
             CONF_PORT: connection[CONF_PORT],
@@ -108,7 +110,7 @@ def import_lcn_config(lcn_config):
             CONF_DEVICES: [],
             CONF_ENTITIES: [],
         }
-        data[host[CONF_HOST]] = host
+        data[connection[CONF_NAME]] = host
 
     for domain_name, domain_config in lcn_config.items():
         if domain_name == CONF_CONNECTIONS:
@@ -123,7 +125,8 @@ def import_lcn_config(lcn_config):
                 host_name = DEFAULT_NAME
 
             # check if we have a new device config
-            unique_device_id = generate_unique_id(host_name, address)
+            # unique_device_id = generate_unique_id(host_name, address)
+            unique_device_id = generate_unique_id(address)
             for device_config in data[host_name][CONF_DEVICES]:
                 if unique_device_id == device_config[CONF_UNIQUE_ID]:
                     break
@@ -144,8 +147,11 @@ def import_lcn_config(lcn_config):
                 data[host_name][CONF_DEVICES].append(device_config)
 
             # insert entity config
+            # unique_entity_id = generate_unique_id(
+            #     host_name, address, (DOMAIN_LOOKUP[domain_name], domain_data)
+            # )
             unique_entity_id = generate_unique_id(
-                host_name, address, (DOMAIN_LOOKUP[domain_name], domain_data)
+                address, (DOMAIN_LOOKUP[domain_name], domain_data)
             )
             for entity_config in data[host_name][CONF_ENTITIES]:
                 if unique_entity_id == entity_config[CONF_UNIQUE_ID]:
@@ -156,7 +162,7 @@ def import_lcn_config(lcn_config):
                     CONF_UNIQUE_ID: unique_entity_id,
                     CONF_UNIQUE_DEVICE_ID: unique_device_id,
                     CONF_NAME: entity_name,
-                    CONF_RESOURCE: unique_entity_id.split(".", 4)[4],
+                    CONF_RESOURCE: unique_entity_id.split(".", 2)[2],
                     CONF_DOMAIN: DOMAIN_LOOKUP[domain_name],
                     CONF_DOMAIN_DATA: domain_data.copy(),
                 }

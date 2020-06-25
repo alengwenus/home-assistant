@@ -228,7 +228,8 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup_entry(hass, config_entry):
     """Set up a connection to PCHK host from a config entry."""
-    host = config_entry.data[CONF_HOST]
+    # host = config_entry.data[CONF_HOST]
+    host = config_entry.entry_id
     host_address = config_entry.data[CONF_IP_ADDRESS]
     port = config_entry.data[CONF_PORT]
     username = config_entry.data[CONF_USERNAME]
@@ -281,6 +282,10 @@ async def async_setup_entry(hass, config_entry):
         # to keep both in sync.
         # config_entry.add_update_listener(async_update_device_registry)
 
+        print(config_entry.data)
+
+        return True
+
         await hass.async_create_task(async_update_lcn_host_device(hass, config_entry))
         await hass.async_create_task(
             async_update_lcn_address_devices(hass, config_entry)
@@ -322,7 +327,8 @@ async def async_unload_entry(hass, config_entry):
     # forward unloading to platforms
     await hass.config_entries.async_forward_entry_unload(config_entry, "switch")
 
-    host = config_entry.data[CONF_HOST]
+    # host = config_entry.data[CONF_HOST]
+    host = config_entry.entry_id
     if host in hass.data[DATA_LCN][CONF_CONNECTIONS]:
         connection = hass.data[DATA_LCN][CONF_CONNECTIONS].pop(host)
         await connection.async_close()

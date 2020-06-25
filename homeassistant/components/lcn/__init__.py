@@ -282,11 +282,8 @@ async def async_setup_entry(hass, config_entry):
         # to keep both in sync.
         # config_entry.add_update_listener(async_update_device_registry)
 
-        print(config_entry.data)
-
-        return True
-
         await hass.async_create_task(async_update_lcn_host_device(hass, config_entry))
+
         await hass.async_create_task(
             async_update_lcn_address_devices(hass, config_entry)
         )
@@ -301,6 +298,7 @@ async def async_setup_entry(hass, config_entry):
                 async_update_lcn_device_names(hass, config_entry)
             )
             config_entry.source = config_entries.SOURCE_USER
+        return True
 
         # forward config_entry to components
         for domain in [

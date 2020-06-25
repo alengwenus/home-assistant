@@ -180,13 +180,14 @@ def import_lcn_config(lcn_config):
 async def async_update_lcn_host_device(hass, config_entry):
     """Register LCN host for given config_entry."""
     device_registry = await dr.async_get_registry(hass)
-    host_name = config_entry.data[CONF_HOST]
-    unique_host_id = config_entry.data[CONF_UNIQUE_ID]
-    identifiers = {(DOMAIN, unique_host_id)}
+    # host_name = config_entry.data[CONF_HOST]
+    # unique_host_id = config_entry.data[CONF_UNIQUE_ID]
+    # identifiers = {(DOMAIN, unique_host_id)}
+    identifiers = {(DOMAIN, config_entry.entry_id)}
     device_config = dict(
         # config_entry_id=config_entry.entry_id,
         manufacturer="LCN",
-        name=f"{host_name}",
+        name=f"{config_entry.title}",
         model="PCHK",
     )
 
@@ -207,8 +208,9 @@ async def async_update_lcn_address_devices(hass, config_entry):
     The name of all given address_connections is collected and the devices
     are updated.
     """
-    unique_host_id = config_entry.data[CONF_UNIQUE_ID]
-    host_identifier = (DOMAIN, unique_host_id)
+    # unique_host_id = config_entry.data[CONF_UNIQUE_ID]
+    # host_identifier = (DOMAIN, unique_host_id)
+    host_identifier = (DOMAIN, config_entry.entry_id)
     device_registry = await dr.async_get_registry(hass)
 
     device_data = dict(
@@ -220,14 +222,17 @@ async def async_update_lcn_address_devices(hass, config_entry):
     for device_config in config_entry.data[CONF_DEVICES]:
         unique_device_id = device_config[CONF_UNIQUE_ID]
         device_name = device_config[CONF_NAME]
-        identifiers = {(DOMAIN, unique_device_id)}
+        # identifiers = {(DOMAIN, unique_device_id)}
+        identifiers = {(DOMAIN, config_entry.entry_id, unique_device_id)}
 
         if device_config[CONF_IS_GROUP]:
             # get group info
-            device_model = f"group ({unique_device_id.split('.', 2)[2]})"
+            # device_model = f"group ({unique_device_id.split('.', 2)[2]})"
+            device_model = f"group ({unique_device_id})"
         else:
             # get module info
-            device_model = f"module ({unique_device_id.split('.', 2)[2]})"
+            # device_model = f"module ({unique_device_id.split('.', 2)[2]})"
+            device_model = f"module ({unique_device_id})"
             device_data.update(sw_version=f"{device_config[CONF_SOFTWARE_SERIAL]:06X}")
 
         device_data.update(name=device_name, model=device_model)
@@ -256,7 +261,8 @@ async def async_update_lcn_address_devices(hass, config_entry):
 
 async def async_update_lcn_device_serials(hass, config_entry):
     """Request device serials from LCN modules and updates config_entry."""
-    host_name = config_entry.data[CONF_HOST]
+    # host_name = config_entry.data[CONF_HOST]
+    host_name = config_entry.entry_id
     lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     for device_config in config_entry.data[CONF_DEVICES]:
         if device_config[CONF_IS_GROUP]:
@@ -292,7 +298,8 @@ async def async_update_lcn_device_serials(hass, config_entry):
 
 async def async_update_lcn_device_names(hass, config_entry):
     """Request device serials from LCN modules and updates config_entry."""
-    host_name = config_entry.data[CONF_HOST]
+    # host_name = config_entry.data[CONF_HOST]
+    host_name = config_entry.entry_id
     lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     for device_config in config_entry.data[CONF_DEVICES]:
         if device_config[CONF_IS_GROUP]:

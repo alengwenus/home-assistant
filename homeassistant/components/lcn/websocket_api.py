@@ -9,7 +9,6 @@ from homeassistant.components import websocket_api
 from homeassistant.const import (
     CONF_DEVICES,
     CONF_ENTITIES,
-    CONF_HOST,
     CONF_ID,
     CONF_IP_ADDRESS,
     CONF_NAME,
@@ -247,15 +246,16 @@ async def websocket_delete_device(hass, connection, msg):
 )
 async def websocket_add_entity(hass, connection, msg):
     """Add an entity."""
-    print(msg)
     config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
 
     device_config = get_device_config(msg["unique_device_id"], config_entry)
     unique_id = generate_unique_id(
-        msg[ATTR_HOST_ID],
+        # msg[ATTR_HOST_ID],
         get_device_address(device_config),
         (msg[ATTR_DOMAIN], msg[ATTR_DOMAIN_DATA]),
     )
+
+    print(unique_id)
 
     entity_registry = await er.async_get_registry(hass)
     entity_id = entity_registry.async_get_entity_id(msg[ATTR_DOMAIN], DOMAIN, unique_id)
@@ -266,7 +266,7 @@ async def websocket_add_entity(hass, connection, msg):
             ATTR_UNIQUE_ID: unique_id,
             "unique_device_id": msg["unique_device_id"],
             CONF_NAME: msg[ATTR_NAME],
-            ATTR_RESOURCE: unique_id.split(".", 4)[4],
+            ATTR_RESOURCE: unique_id.split("-", 2)[2],
             ATTR_DOMAIN: msg[ATTR_DOMAIN],
             ATTR_DOMAIN_DATA: msg[ATTR_DOMAIN_DATA],
         }
@@ -391,7 +391,7 @@ async def async_create_or_update_device(device_connection, config_entry, lock):
         else:
             # create new device_entry
             unique_device_id = generate_unique_id(
-                config_entry.data[CONF_HOST],
+                # config_entry.data[CONF_HOST],
                 (
                     device_connection.get_seg_id(),
                     device_connection.get_id(),

@@ -2,7 +2,7 @@
 import pypck
 
 from homeassistant.components.cover import DOMAIN as DOMAIN_COVER, CoverEntity
-from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES, CONF_HOST
+from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES
 
 from .const import (
     CONF_CONNECTIONS,
@@ -18,7 +18,7 @@ from .lcn_entity import LcnEntity
 
 def create_lcn_cover_entity(hass, entity_config, config_entry):
     """Set up an entity for this domain."""
-    host_name = config_entry.data[CONF_HOST]
+    host_name = config_entry.entry_id
     host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     device_config = get_device_config(
         entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
@@ -26,9 +26,9 @@ def create_lcn_cover_entity(hass, entity_config, config_entry):
     addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
     device_connection = host.get_address_conn(addr)
     if entity_config[CONF_DOMAIN_DATA][CONF_MOTOR] in "OUTPUTS":
-        entity = LcnOutputsCover(entity_config, device_connection)
+        entity = LcnOutputsCover(entity_config, host_name, device_connection)
     else:  # in RELAYS
-        entity = LcnRelayCover(entity_config, device_connection)
+        entity = LcnRelayCover(entity_config, host_name, device_connection)
     return entity
 
 
@@ -46,9 +46,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnOutputsCover(LcnEntity, CoverEntity):
     """Representation of a LCN cover connected to output ports."""
 
-    def __init__(self, config, address_connection):
+    def __init__(self, config, host_id, address_connection):
         """Initialize the LCN cover."""
-        super().__init__(config, address_connection)
+        super().__init__(config, host_id, address_connection)
 
         self.output_ids = [
             pypck.lcn_defs.OutputPort["OUTPUTUP"].value,
@@ -160,9 +160,9 @@ class LcnOutputsCover(LcnEntity, CoverEntity):
 class LcnRelayCover(LcnEntity, CoverEntity):
     """Representation of a LCN cover connected to relays."""
 
-    def __init__(self, config, address_connection):
+    def __init__(self, config, host_id, address_connection):
         """Initialize the LCN cover."""
-        super().__init__(config, address_connection)
+        super().__init__(config, host_id, address_connection)
 
         self.motor = pypck.lcn_defs.MotorPort[config[CONF_DOMAIN_DATA][CONF_MOTOR]]
         self.motor_port_onoff = self.motor.value * 2

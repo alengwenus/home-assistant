@@ -10,7 +10,6 @@ from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_DOMAIN,
     CONF_ENTITIES,
-    CONF_HOST,
     CONF_UNIT_OF_MEASUREMENT,
 )
 
@@ -31,7 +30,7 @@ from .lcn_entity import LcnEntity
 
 def create_lcn_climate_entity(hass, entity_config, config_entry):
     """Set up an entity for this domain."""
-    host_name = config_entry.data[CONF_HOST]
+    host_name = config_entry.entry_id
     host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     device_config = get_device_config(
         entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
@@ -39,7 +38,7 @@ def create_lcn_climate_entity(hass, entity_config, config_entry):
     addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
     device_connection = host.get_address_conn(addr)
 
-    entity = LcnClimate(entity_config, device_connection)
+    entity = LcnClimate(entity_config, host_name, device_connection)
     return entity
 
 
@@ -59,9 +58,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnClimate(LcnEntity, ClimateEntity):
     """Representation of a LCN climate device."""
 
-    def __init__(self, config, address_connection):
+    def __init__(self, config, host_id, address_connection):
         """Initialize of a LCN climate device."""
-        super().__init__(config, address_connection)
+        super().__init__(config, host_id, address_connection)
 
         self.variable = pypck.lcn_defs.Var[config[CONF_DOMAIN_DATA][CONF_SOURCE]]
         self.setpoint = pypck.lcn_defs.Var[config[CONF_DOMAIN_DATA][CONF_SETPOINT]]

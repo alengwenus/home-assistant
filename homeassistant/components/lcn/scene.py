@@ -4,7 +4,7 @@ from typing import Any
 import pypck
 
 from homeassistant.components.scene import DOMAIN as DOMAIN_SCENE, Scene
-from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES, CONF_HOST
+from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES
 
 from .const import (
     CONF_CONNECTIONS,
@@ -23,14 +23,14 @@ from .lcn_entity import LcnEntity
 
 def create_lcn_scene_entity(hass, entity_config, config_entry):
     """Set up an entity for this domain."""
-    host_name = config_entry.data[CONF_HOST]
+    host_name = config_entry.entry_id
     host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     device_config = get_device_config(
         entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
     )
     addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
     device_connection = host.get_address_conn(addr)
-    entity = LcnScene(entity_config, device_connection)
+    entity = LcnScene(entity_config, host_name, device_connection)
 
     return entity
 
@@ -49,9 +49,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnScene(LcnEntity, Scene):
     """Representation of a LCN scene."""
 
-    def __init__(self, config, address_connection):
+    def __init__(self, config, host_id, address_connection):
         """Initialize the LCN scene."""
-        super().__init__(config, address_connection)
+        super().__init__(config, host_id, address_connection)
 
         self.register_id = config[CONF_DOMAIN_DATA][CONF_REGISTER]
         self.scene_id = config[CONF_DOMAIN_DATA][CONF_SCENE]

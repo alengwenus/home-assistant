@@ -2,12 +2,7 @@
 import pypck
 
 from homeassistant.components.sensor import DOMAIN as DOMAIN_SENSOR
-from homeassistant.const import (
-    CONF_DOMAIN,
-    CONF_ENTITIES,
-    CONF_HOST,
-    CONF_UNIT_OF_MEASUREMENT,
-)
+from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES, CONF_UNIT_OF_MEASUREMENT
 
 from .const import (
     CONF_CONNECTIONS,
@@ -27,7 +22,7 @@ from .lcn_entity import LcnEntity
 
 def create_lcn_sensor_entity(hass, entity_config, config_entry):
     """Set up an entity for this domain."""
-    host_name = config_entry.data[CONF_HOST]
+    host_name = config_entry.entry_id
     host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     device_config = get_device_config(
         entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
@@ -39,9 +34,9 @@ def create_lcn_sensor_entity(hass, entity_config, config_entry):
         entity_config[CONF_DOMAIN_DATA][CONF_SOURCE]
         in VARIABLES + SETPOINTS + THRESHOLDS + S0_INPUTS
     ):
-        entity = LcnVariableSensor(entity_config, device_connection)
+        entity = LcnVariableSensor(entity_config, host_name, device_connection)
     else:  # in LED_PORTS + LOGICOP_PORTS
-        entity = LcnLedLogicSensor(entity_config, device_connection)
+        entity = LcnLedLogicSensor(entity_config, host_name, device_connection)
     return entity
 
 
@@ -59,9 +54,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnVariableSensor(LcnEntity):
     """Representation of a LCN sensor for variables."""
 
-    def __init__(self, config, address_connection):
+    def __init__(self, config, host_id, address_connection):
         """Initialize the LCN sensor."""
-        super().__init__(config, address_connection)
+        super().__init__(config, host_id, address_connection)
 
         self.variable = pypck.lcn_defs.Var[config[CONF_DOMAIN_DATA][CONF_SOURCE]]
         self.unit = pypck.lcn_defs.VarUnit.parse(
@@ -107,9 +102,9 @@ class LcnVariableSensor(LcnEntity):
 class LcnLedLogicSensor(LcnEntity):
     """Representation of a LCN sensor for leds and logicops."""
 
-    def __init__(self, config, address_connection):
+    def __init__(self, config, host_id, address_connection):
         """Initialize the LCN sensor."""
-        super().__init__(config, address_connection)
+        super().__init__(config, host_id, address_connection)
 
         if config[CONF_DOMAIN_DATA][CONF_SOURCE] in LED_PORTS:
             self.source = pypck.lcn_defs.LedPort[config[CONF_DOMAIN_DATA][CONF_SOURCE]]

@@ -301,12 +301,12 @@ async def async_setup_entry(hass, config_entry):
 
         # forward config_entry to components
         for domain in [
-            # "binary_sensor",
-            # "climate",
-            # "cover",
-            # "light",
-            # "scene",
-            # "sensor",
+            "binary_sensor",
+            "climate",
+            "cover",
+            "light",
+            "scene",
+            "sensor",
             "switch",
         ]:
             hass.async_add_job(

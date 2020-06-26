@@ -1,5 +1,4 @@
 """Helpers for LCN component."""
-import asyncio
 import logging
 import re
 
@@ -274,10 +273,7 @@ async def async_update_lcn_device_serials(hass, config_entry):
             addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
             # get module info
             device_connection = lcn_connection.get_address_conn(addr)
-            try:
-                await asyncio.wait_for(device_connection.serial_known, timeout=3)
-            except asyncio.TimeoutError:
-                continue
+            await device_connection.serial_known
 
             # device_name = await device_connection.request_name()
             device_hardware_serial = device_connection.hardware_serial
@@ -303,17 +299,24 @@ async def async_update_lcn_device_names(hass, config_entry):
     lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
     for device_config in config_entry.data[CONF_DEVICES]:
         if device_config[CONF_IS_GROUP]:
-            device_name = f"Group  {device_config[CONF_ADDRESS_ID]:d}"
+            device_name = (
+                f"Group g"
+                f"{device_config[CONF_SEGMENT_ID]:03d}"
+                f"{device_config[CONF_ADDRESS_ID]:03d}"
+            )
         else:
             addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
             # get module info
             device_connection = lcn_connection.get_address_conn(addr)
-            try:
-                await asyncio.wait_for(device_connection.serial_known, timeout=3)
-            except asyncio.TimeoutError:
-                continue
+            await device_connection.serial_known
 
             device_name = await device_connection.request_name()
+            if not device_name:
+                device_name = (
+                    f"Module m"
+                    f"{device_config[CONF_SEGMENT_ID]:03d}"
+                    f"{device_config[CONF_ADDRESS_ID]:03d}"
+                )
 
         device_config[CONF_NAME] = device_name
 

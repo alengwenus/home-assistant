@@ -24,6 +24,7 @@ from homeassistant.const import (
     TEMP_CELSIUS,
     TEMP_FAHRENHEIT,
 )
+from homeassistant.helpers import device_registry as dr
 import homeassistant.helpers.config_validation as cv
 
 from . import websocket_api as wsapi
@@ -281,6 +282,12 @@ async def async_setup_entry(hass, config_entry):
         # Update DeviceRegistry whenever ConfigEntry gets updated
         # to keep both in sync.
         # config_entry.add_update_listener(async_update_device_registry)
+
+        # cleanup device registry, if we imported from configuration.yaml to remove
+        # orphans when entities were removed from configuration
+        if config_entry.source == config_entries.SOURCE_IMPORT:
+            device_registry = await dr.async_get_registry(hass)
+            device_registry.async_clear_config_entry(config_entry.entry_id)
 
         await hass.async_create_task(async_update_lcn_host_device(hass, config_entry))
 

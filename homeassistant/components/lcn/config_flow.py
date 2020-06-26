@@ -101,6 +101,7 @@ class LcnFlowHandler(config_entries.ConfigFlow):
         entry = await self.async_set_unique_id(host_name)
         if entry:
             # await self.hass.config_entries.async_remove(entry.entry_id)
+            entry.source = config_entries.SOURCE_IMPORT
             self.hass.config_entries.async_update_entry(entry, data=info)
             return self.async_abort(reason="existing_configuration_updated")
 

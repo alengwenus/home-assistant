@@ -42,7 +42,6 @@ from .switch import create_lcn_switch_entity
 
 TYPE = "type"
 ID = "id"
-ATTR_HOST = "host"
 ATTR_HOST_ID = "host_id"
 ATTR_NAME = "name"
 ATTR_UNIQUE_ID = "unique_id"
@@ -104,13 +103,13 @@ async def websocket_get_device_configs(hass, connection, msg):
 @websocket_api.websocket_command(
     {
         vol.Required(TYPE): "lcn/device",
-        vol.Required(ATTR_HOST): cv.string,
+        vol.Required(ATTR_HOST_ID): cv.string,
         vol.Required("unique_device_id"): cv.string,
     }
 )
 async def websocket_get_device_config(hass, connection, msg):
     """Get device config."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST])
+    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
     device_config = get_device_config(msg["unique_device_id"], config_entry)
     connection.send_result(msg[ID], device_config)
 
@@ -120,13 +119,13 @@ async def websocket_get_device_config(hass, connection, msg):
 @websocket_api.websocket_command(
     {
         vol.Required(TYPE): "lcn/entities",
-        vol.Required(ATTR_HOST): cv.string,
+        vol.Required(ATTR_HOST_ID): cv.string,
         vol.Required("unique_device_id"): cv.string,
     }
 )
 async def websocket_get_entity_configs(hass, connection, msg):
     """Get entities configs."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST])
+    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
 
     sort_lcn_config_entry(config_entry)
     entity_configs = [
@@ -140,11 +139,11 @@ async def websocket_get_entity_configs(hass, connection, msg):
 @websocket_api.require_admin
 @websocket_api.async_response
 @websocket_api.websocket_command(
-    {vol.Required(TYPE): "lcn/device/scan", vol.Required(ATTR_HOST): cv.string}
+    {vol.Required(TYPE): "lcn/device/scan", vol.Required(ATTR_HOST_ID): cv.string}
 )
 async def websocket_scan_devices(hass, connection, msg):
     """Scan for new devices."""
-    host_name = msg[ATTR_HOST]
+    host_name = msg[ATTR_HOST_ID]
     config_entry = get_config_entry(hass, host_name)
 
     host_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
@@ -176,7 +175,7 @@ async def websocket_scan_devices(hass, connection, msg):
 @websocket_api.websocket_command(
     {
         vol.Required(TYPE): "lcn/device/add",
-        vol.Required(ATTR_HOST): cv.string,
+        vol.Required(ATTR_HOST_ID): cv.string,
         vol.Required(ATTR_SEGMENT_ID): cv.positive_int,
         vol.Required(ATTR_ADDRESS_ID): cv.positive_int,
         vol.Required(ATTR_IS_GROUP): cv.boolean,
@@ -185,7 +184,7 @@ async def websocket_scan_devices(hass, connection, msg):
 )
 async def websocket_add_device(hass, connection, msg):
     """Add a device."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST])
+    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
 
     address = (msg[ATTR_SEGMENT_ID], msg[ATTR_ADDRESS_ID], msg[ATTR_IS_GROUP])
 
@@ -209,13 +208,13 @@ async def websocket_add_device(hass, connection, msg):
 @websocket_api.websocket_command(
     {
         vol.Required(TYPE): "lcn/device/delete",
-        vol.Required(ATTR_HOST): cv.string,
+        vol.Required(ATTR_HOST_ID): cv.string,
         vol.Required(ATTR_UNIQUE_ID): cv.string,
     }
 )
 async def websocket_delete_device(hass, connection, msg):
     """Delete a device."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST])
+    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
 
     device_registry = await dr.async_get_registry(hass)
     delete_device(config_entry, device_registry, msg[ATTR_UNIQUE_ID])
@@ -235,7 +234,7 @@ async def websocket_delete_device(hass, connection, msg):
 @websocket_api.websocket_command(
     {
         vol.Required(TYPE): "lcn/entity/add",
-        vol.Required(ATTR_HOST): cv.string,
+        vol.Required(ATTR_HOST_ID): cv.string,
         vol.Required("unique_device_id"): cv.string,
         vol.Required(ATTR_NAME): cv.string,
         vol.Required(ATTR_DOMAIN): cv.string,
@@ -249,11 +248,11 @@ async def websocket_delete_device(hass, connection, msg):
 async def websocket_add_entity(hass, connection, msg):
     """Add an entity."""
     print(msg)
-    config_entry = get_config_entry(hass, msg[ATTR_HOST])
+    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
 
     device_config = get_device_config(msg["unique_device_id"], config_entry)
     unique_id = generate_unique_id(
-        msg[ATTR_HOST],
+        msg[ATTR_HOST_ID],
         get_device_address(device_config),
         (msg[ATTR_DOMAIN], msg[ATTR_DOMAIN_DATA]),
     )
@@ -300,13 +299,13 @@ async def websocket_add_entity(hass, connection, msg):
 @websocket_api.websocket_command(
     {
         vol.Required(TYPE): "lcn/entity/delete",
-        vol.Required(ATTR_HOST): cv.string,
+        vol.Required(ATTR_HOST_ID): cv.string,
         vol.Required(ATTR_UNIQUE_ID): cv.string,
     }
 )
 async def websocket_delete_entity(hass, connection, msg):
     """Delete an entity."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST])
+    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
 
     device_registry = await dr.async_get_registry(hass)
     delete_entity(config_entry, device_registry, msg[ATTR_UNIQUE_ID])
@@ -324,7 +323,7 @@ async def websocket_delete_entity(hass, connection, msg):
 def add_device(config_entry, address, name=""):
     """Add a device to config_entry and device_registry."""
     # unique_host_id = config_entry.data["unique_id"]
-    host_name = config_entry.data[ATTR_HOST]
+    host_name = config_entry.data[ATTR_HOST_ID]
     unique_device_id = generate_unique_id(host_name, address)
 
     # add device to config_entry

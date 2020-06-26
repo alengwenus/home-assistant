@@ -323,8 +323,9 @@ async def websocket_delete_entity(hass, connection, msg):
 def add_device(config_entry, address, name=""):
     """Add a device to config_entry and device_registry."""
     # unique_host_id = config_entry.data["unique_id"]
-    host_name = config_entry.data[ATTR_HOST_ID]
-    unique_device_id = generate_unique_id(host_name, address)
+    # host_name = config_entry.entry_id
+    # unique_device_id = generate_unique_id(host_name, address)
+    unique_device_id = generate_unique_id(address)
 
     # add device to config_entry
     device_config = {
@@ -351,7 +352,8 @@ def delete_device(config_entry, device_registry, unique_id):
             delete_entity(config_entry, device_registry, entity_config[ATTR_UNIQUE_ID])
 
     # now delete module/group device
-    identifiers = {(DOMAIN, unique_id)}
+    # identifiers = {(DOMAIN, unique_id)}
+    identifiers = {(DOMAIN, config_entry.entry_id, unique_id)}
     device = device_registry.async_get_device(identifiers, set())
 
     if device:
@@ -363,7 +365,8 @@ def delete_entity(config_entry, device_registry, unique_id):
     """Delete an entity from config_entry and device_registry/entity_registry."""
     entity_config = get_entity_config(unique_id, config_entry)
 
-    identifiers = {(DOMAIN, unique_id)}
+    # identifiers = {(DOMAIN, unique_id)}
+    identifiers = {(DOMAIN, config_entry.entry_id, unique_id)}
     entity_device = device_registry.async_get_device(identifiers, set())
 
     if entity_device:

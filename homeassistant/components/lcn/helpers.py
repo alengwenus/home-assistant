@@ -299,11 +299,10 @@ def get_config_entry(hass, host_id):
 
 def get_device_config(unique_device_id, config_entry):
     """Return the configuration for given unique_device_id."""
-    return next(
-        device_config
-        for device_config in config_entry.data[CONF_DEVICES]
-        if device_config[CONF_UNIQUE_ID] == unique_device_id
-    )
+    for device_config in config_entry.data[CONF_DEVICES]:
+        if device_config[CONF_UNIQUE_ID] == unique_device_id:
+            return device_config
+    return None
 
 
 def get_entity_config(unique_entity_id, config_entry):

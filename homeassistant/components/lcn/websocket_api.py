@@ -3,7 +3,6 @@
 import asyncio
 from operator import itemgetter
 
-import pypck
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
@@ -37,6 +36,7 @@ from .helpers import (  # async_register_lcn_address_devices,
     get_config_entry,
     get_device_address,
     get_device_config,
+    get_device_connection,
     get_entity_config,
 )
 from .switch import create_lcn_switch_entity
@@ -191,14 +191,17 @@ async def websocket_add_device(hass, connection, msg):
 
     result = await hass.async_create_task(add_device(hass, config_entry, address))
 
-    # sort config_entry
-    sort_lcn_config_entry(config_entry)
+    if result:
+        # sort config_entry
+        sort_lcn_config_entry(config_entry)
 
-    # schedule config_entry for save
-    hass.config_entries.async_update_entry(config_entry)
+        # schedule config_entry for save
+        hass.config_entries.async_update_entry(config_entry)
 
-    # create/update devices in device regsitry
-    await hass.async_create_task(async_update_lcn_address_devices(hass, config_entry))
+        # create/update devices in device regsitry
+        await hass.async_create_task(
+            async_update_lcn_address_devices(hass, config_entry)
+        )
 
     # return the device config, not all devices !!!
     connection.send_result(msg[ID], result)
@@ -326,6 +329,9 @@ async def add_device(hass, config_entry, address):
     """Add a device to config_entry and device_registry."""
     unique_device_id = generate_unique_id(address)
 
+    if get_device_config(unique_device_id, config_entry):
+        return False  # device_config already in config_entry
+
     device_config = {
         ATTR_UNIQUE_ID: unique_device_id,
         ATTR_NAME: "",
@@ -337,14 +343,15 @@ async def add_device(hass, config_entry, address):
         "hardware_type": -1,
     }
 
+    # add device_config to config_entry
+    config_entry.data[CONF_DEVICES].append(device_config)
+
     # update device info from LCN
-    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.entry_id]
-    addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
-    device_connection = lcn_connection.get_address_conn(addr)
+    device_connection = get_device_connection(
+        hass, device_config[ATTR_UNIQUE_ID], config_entry
+    )
     await async_update_device_config(device_connection, device_config)
 
-    # add device to config_entry
-    config_entry.data[CONF_DEVICES].append(device_config)
     return True
 
 

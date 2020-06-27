@@ -65,9 +65,8 @@ from .const import (
     VARIABLES,
 )
 from .helpers import (
+    async_update_config_entry,
     async_update_lcn_address_devices,
-    async_update_lcn_device_names,
-    async_update_lcn_device_serials,
     async_update_lcn_host_device,
     has_unique_host_names,
     import_lcn_config,
@@ -276,35 +275,25 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.warning('Connection to PCHK "%s" failed.', host)
             return False
 
-        # register LCN host, modules and groups in device registry
-        # await hass.async_create_task(async_register_lcn_devices(hass, config_entry))
-
         # Update DeviceRegistry whenever ConfigEntry gets updated
         # to keep both in sync.
         # config_entry.add_update_listener(async_update_device_registry)
+
+        # update config_entry with LCN device serials
+        await hass.async_create_task(async_update_config_entry(hass, config_entry))
 
         # cleanup device registry, if we imported from configuration.yaml to remove
         # orphans when entities were removed from configuration
         if config_entry.source == config_entries.SOURCE_IMPORT:
             device_registry = await dr.async_get_registry(hass)
             device_registry.async_clear_config_entry(config_entry.entry_id)
+            config_entry.source = config_entries.SOURCE_USER
 
         await hass.async_create_task(async_update_lcn_host_device(hass, config_entry))
 
         await hass.async_create_task(
             async_update_lcn_address_devices(hass, config_entry)
         )
-
-        # update config_entry with LCN device serials
-        await hass.async_create_task(
-            async_update_lcn_device_serials(hass, config_entry)
-        )
-
-        if config_entry.source == config_entries.SOURCE_IMPORT:
-            await hass.async_create_task(
-                async_update_lcn_device_names(hass, config_entry)
-            )
-            config_entry.source = config_entries.SOURCE_USER
 
         # forward config_entry to components
         for domain in [

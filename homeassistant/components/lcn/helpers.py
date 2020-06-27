@@ -1,4 +1,5 @@
 """Helpers for LCN component."""
+import asyncio
 import logging
 import re
 
@@ -124,31 +125,25 @@ def import_lcn_config(lcn_config):
                 host_name = DEFAULT_NAME
 
             # check if we have a new device config
-            # unique_device_id = generate_unique_id(host_name, address)
             unique_device_id = generate_unique_id(address)
             for device_config in data[host_name][CONF_DEVICES]:
                 if unique_device_id == device_config[CONF_UNIQUE_ID]:
                     break
             else:  # create new device_config
-                device_type = "Group" if address[2] else "Module"
-                device_name = f"{device_type} " f"{address[0]:03d}/" f"{address[1]:03d}"
                 device_config = {
                     CONF_UNIQUE_ID: unique_device_id,
-                    CONF_NAME: device_name,
+                    CONF_NAME: "",
                     CONF_SEGMENT_ID: address[0],
                     CONF_ADDRESS_ID: address[1],
                     CONF_IS_GROUP: address[2],
-                    CONF_HARDWARE_SERIAL: 0,
-                    CONF_SOFTWARE_SERIAL: 0,
-                    CONF_HARDWARE_TYPE: 0,
+                    CONF_HARDWARE_SERIAL: -1,
+                    CONF_SOFTWARE_SERIAL: -1,
+                    CONF_HARDWARE_TYPE: -1,
                 }
 
                 data[host_name][CONF_DEVICES].append(device_config)
 
             # insert entity config
-            # unique_entity_id = generate_unique_id(
-            #     host_name, address, (DOMAIN_LOOKUP[domain_name], domain_data)
-            # )
             unique_entity_id = generate_unique_id(
                 address, (DOMAIN_LOOKUP[domain_name], domain_data)
             )
@@ -258,73 +253,45 @@ async def async_update_lcn_address_devices(hass, config_entry):
 #
 
 
-async def async_update_lcn_device_serials(hass, config_entry):
-    """Request device serials from LCN modules and updates config_entry."""
-    # host_name = config_entry.data[CONF_HOST]
-    host_name = config_entry.entry_id
-    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
-    for device_config in config_entry.data[CONF_DEVICES]:
-        if device_config[CONF_IS_GROUP]:
-            # device_name = f"Group  {device_config[CONF_ADDRESS_ID]:d}"
-            device_hardware_serial = 0
-            device_software_serial = 0
-            device_hardware_type = 0
-        else:
-            addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
-            # get module info
-            device_connection = lcn_connection.get_address_conn(addr)
-            await device_connection.serial_known
+async def async_update_device_config(device_connection, device_config):
+    """Fill missing values in device_config from LCN."""
+    if not device_config[CONF_IS_GROUP]:
+        await device_connection.serial_known
+        if device_config[CONF_HARDWARE_SERIAL] == -1:
+            device_config[CONF_HARDWARE_SERIAL] = device_connection.hardware_serial
+        if device_config[CONF_SOFTWARE_SERIAL] == -1:
+            device_config[CONF_SOFTWARE_SERIAL] = device_connection.software_serial
+        if device_config[CONF_HARDWARE_TYPE] == -1:
+            device_config[CONF_HARDWARE_TYPE] = device_connection.hw_type
 
-            # device_name = await device_connection.request_name()
-            device_hardware_serial = device_connection.hardware_serial
-            device_software_serial = device_connection.software_serial
-            device_hardware_type = device_connection.hw_type
-
-        # device_config[CONF_NAME] = device_name
-        device_config[CONF_HARDWARE_SERIAL] = device_hardware_serial
-        device_config[CONF_SOFTWARE_SERIAL] = device_software_serial
-        device_config[CONF_HARDWARE_TYPE] = device_hardware_type
-
-    # schedule config_entry for save
-    hass.config_entries.async_update_entry(config_entry)
-
-    # update device registry
-    await async_update_lcn_address_devices(hass, config_entry)
-
-
-async def async_update_lcn_device_names(hass, config_entry):
-    """Request device serials from LCN modules and updates config_entry."""
-    # host_name = config_entry.data[CONF_HOST]
-    host_name = config_entry.entry_id
-    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
-    for device_config in config_entry.data[CONF_DEVICES]:
-        if device_config[CONF_IS_GROUP]:
+    if device_config[CONF_NAME] == "":
+        if device_config[CONF_IS_GROUP] or device_connection.hardware_serial == -1:
+            module_type = "Group" if device_config[CONF_IS_GROUP] else "Module"
             device_name = (
-                f"Group g"
-                f"{device_config[CONF_SEGMENT_ID]:03d}"
+                f"{module_type} "
+                f"{device_config[CONF_SEGMENT_ID]:03d}/"
                 f"{device_config[CONF_ADDRESS_ID]:03d}"
             )
         else:
-            addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
-            # get module info
-            device_connection = lcn_connection.get_address_conn(addr)
-            await device_connection.serial_known
-
             device_name = await device_connection.request_name()
-            if not device_name:
-                device_name = (
-                    f"Module m"
-                    f"{device_config[CONF_SEGMENT_ID]:03d}"
-                    f"{device_config[CONF_ADDRESS_ID]:03d}"
-                )
-
         device_config[CONF_NAME] = device_name
+
+
+async def async_update_config_entry(hass, config_entry):
+    """Fill missing values in config_entry with information from LCN."""
+    host_id = config_entry.entry_id
+    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_id]
+
+    coros = []
+    for device_config in config_entry.data[CONF_DEVICES]:
+        addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+        device_connection = lcn_connection.get_address_conn(addr)
+        coros.append(async_update_device_config(device_connection, device_config))
+
+    await asyncio.gather(*coros)
 
     # schedule config_entry for save
     hass.config_entries.async_update_entry(config_entry)
-
-    # update device registry
-    await async_update_lcn_address_devices(hass, config_entry)
 
 
 def get_config_entry(hass, host_id):

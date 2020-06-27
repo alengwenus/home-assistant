@@ -3,6 +3,7 @@
 import asyncio
 from operator import itemgetter
 
+import pypck
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
@@ -30,6 +31,7 @@ from .const import (
     RELAY_PORTS,
 )
 from .helpers import (  # async_register_lcn_address_devices,
+    async_update_device_config,
     async_update_lcn_address_devices,
     generate_unique_id,
     get_config_entry,
@@ -142,10 +144,10 @@ async def websocket_get_entity_configs(hass, connection, msg):
 )
 async def websocket_scan_devices(hass, connection, msg):
     """Scan for new devices."""
-    host_name = msg[ATTR_HOST_ID]
-    config_entry = get_config_entry(hass, host_name)
+    host_id = msg[ATTR_HOST_ID]
+    config_entry = get_config_entry(hass, host_id)
 
-    host_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
+    host_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_id]
     await host_connection.scan_modules()
 
     lock = asyncio.Lock()
@@ -187,7 +189,7 @@ async def websocket_add_device(hass, connection, msg):
 
     address = (msg[ATTR_SEGMENT_ID], msg[ATTR_ADDRESS_ID], msg[ATTR_IS_GROUP])
 
-    result = add_device(config_entry, address, msg[ATTR_NAME])
+    result = await hass.async_create_task(add_device(hass, config_entry, address))
 
     # sort config_entry
     sort_lcn_config_entry(config_entry)
@@ -320,25 +322,28 @@ async def websocket_delete_entity(hass, connection, msg):
     connection.send_result(msg[ID])
 
 
-def add_device(config_entry, address, name=""):
+async def add_device(hass, config_entry, address):
     """Add a device to config_entry and device_registry."""
-    # unique_host_id = config_entry.data["unique_id"]
-    # host_name = config_entry.entry_id
-    # unique_device_id = generate_unique_id(host_name, address)
     unique_device_id = generate_unique_id(address)
 
-    # add device to config_entry
     device_config = {
         ATTR_UNIQUE_ID: unique_device_id,
-        ATTR_NAME: name,
+        ATTR_NAME: "",
         ATTR_SEGMENT_ID: address[0],
         ATTR_ADDRESS_ID: address[1],
         ATTR_IS_GROUP: address[2],
-        "hardware_serial": 0,
-        "software_serial": 0,
-        "hardware_type": 0,
+        "hardware_serial": -1,
+        "software_serial": -1,
+        "hardware_type": -1,
     }
 
+    # update device info from LCN
+    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.entry_id]
+    addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+    device_connection = lcn_connection.get_address_conn(addr)
+    await async_update_device_config(device_connection, device_config)
+
+    # add device to config_entry
     config_entry.data[CONF_DEVICES].append(device_config)
     return True
 
@@ -377,16 +382,18 @@ def delete_entity(config_entry, device_registry, unique_id):
 
 async def async_create_or_update_device(device_connection, config_entry, lock):
     """Create or update device in config_entry according to given device_connection."""
-    await device_connection.serial_known
-    device_name = await device_connection.request_name()
+    # await device_connection.serial_known
+    # device_name = await device_connection.request_name()
 
     async with lock:  # prevent simultaneous access to config_entry
-        for device in config_entry.data[CONF_DEVICES]:
+        for device_config in config_entry.data[CONF_DEVICES]:
             if (
-                device[CONF_SEGMENT_ID] == device_connection.get_seg_id()
-                and device[CONF_ADDRESS_ID] == device_connection.get_id()
-                and device[CONF_IS_GROUP] == device_connection.is_group()
+                device_config[CONF_SEGMENT_ID] == device_connection.get_seg_id()
+                and device_config[CONF_ADDRESS_ID] == device_connection.get_id()
+                and device_config[CONF_IS_GROUP] == device_connection.is_group()
             ):
+                if device_config[CONF_IS_GROUP]:
+                    device_config[CONF_NAME] = ""
                 break  # device already in config_entry
         else:
             # create new device_entry
@@ -398,23 +405,29 @@ async def async_create_or_update_device(device_connection, config_entry, lock):
                     device_connection.is_group(),
                 ),
             )
-            device = {
+            device_config = {
                 "unique_id": unique_device_id,
+                CONF_NAME: "",
                 CONF_SEGMENT_ID: device_connection.get_seg_id(),
                 CONF_ADDRESS_ID: device_connection.get_id(),
                 CONF_IS_GROUP: device_connection.is_group(),
+                "hardware_serial": -1,
+                "software_serial": -1,
+                "hardware_type": -1,
             }
-            config_entry.data[CONF_DEVICES].append(device)
+            config_entry.data[CONF_DEVICES].append(device_config)
 
         # update device_entry
-        device.update(
-            {
-                CONF_NAME: device_name,
-                "hardware_serial": device_connection.hardware_serial,
-                "software_serial": device_connection.software_serial,
-                "hardware_type": device_connection.hw_type,
-            }
-        )
+        await async_update_device_config(device_connection, device_config)
+
+        # device.update(
+        #     {
+        #         CONF_NAME: device_name
+        #         "hardware_serial": device_connection.hardware_serial,
+        #         "software_serial": device_connection.software_serial,
+        #         "hardware_type": device_connection.hw_type,
+        #     }
+        # )
 
 
 @callback

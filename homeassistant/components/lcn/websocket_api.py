@@ -255,15 +255,14 @@ async def websocket_add_entity(hass, connection, msg):
 
     device_config = get_device_config(msg["unique_device_id"], config_entry)
     unique_id = generate_unique_id(
-        # msg[ATTR_HOST_ID],
-        get_device_address(device_config),
-        (msg[ATTR_DOMAIN], msg[ATTR_DOMAIN_DATA]),
+        get_device_address(device_config), (msg[ATTR_DOMAIN], msg[ATTR_DOMAIN_DATA]),
     )
 
-    print(unique_id)
-
     entity_registry = await er.async_get_registry(hass)
-    entity_id = entity_registry.async_get_entity_id(msg[ATTR_DOMAIN], DOMAIN, unique_id)
+    entity_id = entity_registry.async_get_entity_id(
+        msg[ATTR_DOMAIN], DOMAIN, f"{msg[ATTR_HOST_ID]}-{unique_id}"
+    )
+
     if entity_id:
         result = False
     else:
@@ -282,8 +281,7 @@ async def websocket_add_entity(hass, connection, msg):
         component = hass.data[msg[ATTR_DOMAIN]]
         platform = component._platforms[config_entry.entry_id]
 
-        abc = await hass.async_add_job(platform.async_add_entities([entity]))
-        print(abc)
+        await hass.async_add_job(platform.async_add_entities([entity]))
 
         # Add entity config to config_entry
         config_entry.data[CONF_ENTITIES].append(entity_config)

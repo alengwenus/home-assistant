@@ -59,9 +59,9 @@ DOMAIN_LOOKUP = {
 
 
 def generate_unique_id(
-    # host_name,
     address=None,
     domain_config=None,  # (domain_name, domain_data)
+    # host_id=None,
     # platform=DOMAIN,
 ):
     """Generate a unique_id from the given parameters."""

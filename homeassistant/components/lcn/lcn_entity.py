@@ -39,7 +39,6 @@ class LcnEntity(Entity):
             "manufacturer": "LCN",
             "model": hw_type,
             "via_device": (DOMAIN, self.host_id, self.config[CONF_UNIQUE_DEVICE_ID]),
-            # "via_device": (DOMAIN, self.host_id, address_repr(self.address_connection)),
         }
 
     @property

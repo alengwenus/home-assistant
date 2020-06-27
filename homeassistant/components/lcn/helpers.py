@@ -279,13 +279,11 @@ async def async_update_device_config(device_connection, device_config):
 
 async def async_update_config_entry(hass, config_entry):
     """Fill missing values in config_entry with information from LCN."""
-    host_id = config_entry.entry_id
-    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_id]
-
     coros = []
     for device_config in config_entry.data[CONF_DEVICES]:
-        addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
-        device_connection = lcn_connection.get_address_conn(addr)
+        device_connection = get_device_connection(
+            hass, device_config[CONF_UNIQUE_ID], config_entry
+        )
         coros.append(async_update_device_config(device_connection, device_config))
 
     await asyncio.gather(*coros)
@@ -297,11 +295,6 @@ async def async_update_config_entry(hass, config_entry):
 def get_config_entry(hass, host_id):
     """Return the config_entry with given host."""
     return hass.config_entries.async_get_entry(host_id)
-    # return next(
-    #     config_entry
-    #     for config_entry in hass.config_entries.async_entries(DOMAIN)
-    #     if config_entry.data[CONF_HOST] == host
-    # )
 
 
 def get_device_config(unique_device_id, config_entry):
@@ -331,27 +324,13 @@ def get_device_address(device_config):
     )
 
 
-def address_repr(address_connection):
-    """Give a representation of the hardware address."""
-    # host_name = address_connection.conn.connection_id
-    address_type = "g" if address_connection.is_group() else "m"
-    segment_id = address_connection.get_seg_id()
-    address_id = address_connection.get_id()
-    return f"{address_type}{segment_id:03d}{address_id:03d}"
-
-
-async def get_address_connections_from_config_entry(hass, config_entry):
-    """Get all address_connections for given config_entry."""
-    address_connections = set()
-    host_name = config_entry.data[CONF_HOST]
-    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
-    for device_config in config_entry.data[CONF_DEVICES]:
-        addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
-        address_connection = lcn_connection.get_address_conn(addr)
-        address_connections.add(address_connection)
-        if not address_connection.is_group():
-            await address_connection.serial_known
-    return address_connections
+def get_device_connection(hass, unique_device_id, config_entry):
+    """Return a lcn device_connection."""
+    device_config = get_device_config(unique_device_id, config_entry)
+    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.entry_id]
+    addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+    device_connection = lcn_connection.get_address_conn(addr)
+    return device_connection
 
 
 def get_connection(hosts, host_name=None):

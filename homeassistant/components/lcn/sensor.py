@@ -5,30 +5,25 @@ from homeassistant.components.sensor import DOMAIN as DOMAIN_SENSOR
 from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES, CONF_UNIT_OF_MEASUREMENT
 
 from .const import (
-    CONF_CONNECTIONS,
     CONF_DOMAIN_DATA,
     CONF_SOURCE,
     CONF_UNIQUE_DEVICE_ID,
-    DATA_LCN,
     LED_PORTS,
     S0_INPUTS,
     SETPOINTS,
     THRESHOLDS,
     VARIABLES,
 )
-from .helpers import get_device_address, get_device_config
+from .helpers import get_device_connection
 from .lcn_entity import LcnEntity
 
 
 def create_lcn_sensor_entity(hass, entity_config, config_entry):
     """Set up an entity for this domain."""
     host_name = config_entry.entry_id
-    host = hass.data[DATA_LCN][CONF_CONNECTIONS][host_name]
-    device_config = get_device_config(
-        entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
+    device_connection = get_device_connection(
+        hass, entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
     )
-    addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
-    device_connection = host.get_address_conn(addr)
 
     if (
         entity_config[CONF_DOMAIN_DATA][CONF_SOURCE]

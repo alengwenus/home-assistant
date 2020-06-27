@@ -2,8 +2,9 @@
 from homeassistant.const import CONF_NAME
 from homeassistant.helpers.entity import Entity
 
-from .const import CONF_UNIQUE_ID, DOMAIN
-from .helpers import address_repr
+from .const import CONF_UNIQUE_DEVICE_ID, CONF_UNIQUE_ID, DOMAIN
+
+# from .helpers import address_repr
 
 
 class LcnEntity(Entity):
@@ -37,7 +38,8 @@ class LcnEntity(Entity):
             "name": self.name,
             "manufacturer": "LCN",
             "model": hw_type,
-            "via_device": (DOMAIN, self.host_id, address_repr(self.address_connection)),
+            "via_device": (DOMAIN, self.host_id, self.config[CONF_UNIQUE_DEVICE_ID]),
+            # "via_device": (DOMAIN, self.host_id, address_repr(self.address_connection)),
         }
 
     @property

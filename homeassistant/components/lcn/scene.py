@@ -7,12 +7,14 @@ from homeassistant.components.scene import DOMAIN as DOMAIN_SCENE, Scene
 from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES
 
 from .const import (
+    ADD_ENTITIES_CALLBACKS,
     CONF_DOMAIN_DATA,
     CONF_OUTPUTS,
     CONF_REGISTER,
     CONF_SCENE,
     CONF_TRANSITION,
     CONF_UNIQUE_DEVICE_ID,
+    DOMAIN as DOMAIN_LCN,
     OUTPUT_PORTS,
 )
 from .helpers import get_device_connection
@@ -32,6 +34,9 @@ def create_lcn_scene_entity(hass, entity_config, config_entry):
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up LCN switch entities from a config entry."""
+    callbacks = hass.data[DOMAIN_LCN][config_entry.entry_id][ADD_ENTITIES_CALLBACKS]
+    callbacks[DOMAIN_SCENE] = async_add_entities
+
     entities = []
 
     for entity_config in config_entry.data[CONF_ENTITIES]:

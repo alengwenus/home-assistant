@@ -29,6 +29,7 @@ import homeassistant.helpers.config_validation as cv
 
 from . import websocket_api as wsapi
 from .const import (
+    ADD_ENTITIES_CALLBACKS,
     BINSENSOR_PORTS,
     CONF_CLIMATES,
     CONF_CONNECTIONS,
@@ -48,7 +49,7 @@ from .const import (
     CONF_SK_NUM_TRIES,
     CONF_SOURCE,
     CONF_TRANSITION,
-    DATA_LCN,
+    CONNECTION,
     DIM_MODES,
     DOMAIN,
     KEYS,
@@ -72,21 +73,22 @@ from .helpers import (
     import_lcn_config,
     is_address,
 )
-from .services import (
-    DynText,
-    Led,
-    LockKeys,
-    LockRegulator,
-    OutputAbs,
-    OutputRel,
-    OutputToggle,
-    Pck,
-    Relays,
-    SendKeys,
-    VarAbs,
-    VarRel,
-    VarReset,
-)
+
+# from .services import (
+#     DynText,
+#     Led,
+#     LockKeys,
+#     LockRegulator,
+#     OutputAbs,
+#     OutputRel,
+#     OutputToggle,
+#     Pck,
+#     Relays,
+#     SendKeys,
+#     VarAbs,
+#     VarRel,
+#     VarReset,
+# )
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -229,7 +231,7 @@ CONFIG_SCHEMA = vol.Schema(
 async def async_setup_entry(hass, config_entry):
     """Set up a connection to PCHK host from a config entry."""
     # host = config_entry.data[CONF_HOST]
-    host = config_entry.entry_id
+    host_id = config_entry.entry_id
     host_address = config_entry.data[CONF_IP_ADDRESS]
     port = config_entry.data[CONF_PORT]
     username = config_entry.data[CONF_USERNAME]
@@ -243,7 +245,7 @@ async def async_setup_entry(hass, config_entry):
     }
 
     # connect to PCHK
-    if host not in hass.data[DATA_LCN][CONF_CONNECTIONS]:
+    if host_id not in hass.data[DOMAIN]:
         lcn_connection = pypck.connection.PchkConnectionManager(
             hass.loop,
             host_address,
@@ -251,28 +253,31 @@ async def async_setup_entry(hass, config_entry):
             username,
             password,
             settings=settings,
-            connection_id=host,
+            connection_id=host_id,
         )
         try:
             # establish connection to PCHK server
             await hass.async_create_task(lcn_connection.async_connect(timeout=15))
-            hass.data[DATA_LCN][CONF_CONNECTIONS][host] = lcn_connection
-            _LOGGER.info('LCN connected to "%s"', host)
+            _LOGGER.info('LCN connected to "%s"', host_id)
+            hass.data[DOMAIN][host_id] = {
+                CONNECTION: lcn_connection,
+                ADD_ENTITIES_CALLBACKS: {},
+            }
         except pypck.connection.PchkAuthenticationError:
-            _LOGGER.warning('Authentication on PCHK "%s" failed.', host)
+            _LOGGER.warning('Authentication on PCHK "%s" failed.', host_id)
             return False
         except pypck.connection.PchkLicenseError:
             _LOGGER.warning(
                 'Maximum number of connections on PCHK "%s" was '
                 "reached. An additional license key is required.",
-                host,
+                host_id,
             )
             return False
         except pypck.connection.PchkLcnNotConnectedError:
             _LOGGER.warning("No connection to the LCN hardware bus.")
             return False
         except TimeoutError:
-            _LOGGER.warning('Connection to PCHK "%s" failed.', host)
+            _LOGGER.warning('Connection to PCHK "%s" failed.', host_id)
             return False
 
         # Update DeviceRegistry whenever ConfigEntry gets updated
@@ -322,8 +327,8 @@ async def async_unload_entry(hass, config_entry):
 
     # host = config_entry.data[CONF_HOST]
     host = config_entry.entry_id
-    if host in hass.data[DATA_LCN][CONF_CONNECTIONS]:
-        connection = hass.data[DATA_LCN][CONF_CONNECTIONS].pop(host)
+    if host in hass.data[DOMAIN]:
+        connection = hass.data[DOMAIN].pop(host)
         await connection.async_close()
 
     return True
@@ -331,30 +336,27 @@ async def async_unload_entry(hass, config_entry):
 
 async def async_setup(hass, config):
     """Set up the LCN component."""
-    if DATA_LCN not in hass.data:
-        hass.data[DATA_LCN] = {}
-    if CONF_CONNECTIONS not in hass.data[DATA_LCN]:
-        hass.data[DATA_LCN][CONF_CONNECTIONS] = {}
+    hass.data[DOMAIN] = {}
 
     # register service calls
-    for service_name, service in (
-        ("output_abs", OutputAbs),
-        ("output_rel", OutputRel),
-        ("output_toggle", OutputToggle),
-        ("relays", Relays),
-        ("var_abs", VarAbs),
-        ("var_reset", VarReset),
-        ("var_rel", VarRel),
-        ("lock_regulator", LockRegulator),
-        ("led", Led),
-        ("send_keys", SendKeys),
-        ("lock_keys", LockKeys),
-        ("dyn_text", DynText),
-        ("pck", Pck),
-    ):
-        hass.services.async_register(
-            DOMAIN, service_name, service(hass), service.schema
-        )
+    # for service_name, service in (
+    #     ("output_abs", OutputAbs),
+    #     ("output_rel", OutputRel),
+    #     ("output_toggle", OutputToggle),
+    #     ("relays", Relays),
+    #     ("var_abs", VarAbs),
+    #     ("var_reset", VarReset),
+    #     ("var_rel", VarRel),
+    #     ("lock_regulator", LockRegulator),
+    #     ("led", Led),
+    #     ("send_keys", SendKeys),
+    #     ("lock_keys", LockKeys),
+    #     ("dyn_text", DynText),
+    #     ("pck", Pck),
+    # ):
+    #     hass.services.async_register(
+    #         DOMAIN, service_name, service(hass), service.schema
+    #     )
 
     if DOMAIN not in config:
         return True

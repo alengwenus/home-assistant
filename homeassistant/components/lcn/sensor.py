@@ -5,9 +5,11 @@ from homeassistant.components.sensor import DOMAIN as DOMAIN_SENSOR
 from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES, CONF_UNIT_OF_MEASUREMENT
 
 from .const import (
+    ADD_ENTITIES_CALLBACKS,
     CONF_DOMAIN_DATA,
     CONF_SOURCE,
     CONF_UNIQUE_DEVICE_ID,
+    DOMAIN as DOMAIN_LCN,
     LED_PORTS,
     S0_INPUTS,
     SETPOINTS,
@@ -37,6 +39,9 @@ def create_lcn_sensor_entity(hass, entity_config, config_entry):
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up LCN switch entities from a config entry."""
+    callbacks = hass.data[DOMAIN_LCN][config_entry.entry_id][ADD_ENTITIES_CALLBACKS]
+    callbacks[DOMAIN_SENSOR] = async_add_entities
+
     entities = []
 
     for entity_config in config_entry.data[CONF_ENTITIES]:

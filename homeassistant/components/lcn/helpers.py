@@ -34,7 +34,7 @@ from .const import (
     CONF_SOFTWARE_SERIAL,
     CONF_UNIQUE_DEVICE_ID,
     CONF_UNIQUE_ID,
-    DATA_LCN,
+    CONNECTION,
     DEFAULT_NAME,
     DOMAIN,
 )
@@ -326,9 +326,9 @@ def get_device_address(device_config):
 def get_device_connection(hass, unique_device_id, config_entry):
     """Return a lcn device_connection."""
     device_config = get_device_config(unique_device_id, config_entry)
-    lcn_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][config_entry.entry_id]
+    host_connection = hass.data[DOMAIN][config_entry.entry_id][CONNECTION]
     addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
-    device_connection = lcn_connection.get_address_conn(addr)
+    device_connection = host_connection.get_address_conn(addr)
     return device_connection
 
 

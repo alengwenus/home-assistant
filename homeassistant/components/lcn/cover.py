@@ -5,10 +5,12 @@ from homeassistant.components.cover import DOMAIN as DOMAIN_COVER, CoverEntity
 from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES
 
 from .const import (
+    ADD_ENTITIES_CALLBACKS,
     CONF_DOMAIN_DATA,
     CONF_MOTOR,
     CONF_REVERSE_TIME,
     CONF_UNIQUE_DEVICE_ID,
+    DOMAIN as DOMAIN_LCN,
 )
 from .helpers import get_device_connection
 from .lcn_entity import LcnEntity
@@ -30,6 +32,9 @@ def create_lcn_cover_entity(hass, entity_config, config_entry):
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up LCN cover entities from a config entry."""
+    callbacks = hass.data[DOMAIN_LCN][config_entry.entry_id][ADD_ENTITIES_CALLBACKS]
+    callbacks[DOMAIN_COVER] = async_add_entities
+
     entities = []
 
     for entity_config in config_entry.data[CONF_ENTITIES]:

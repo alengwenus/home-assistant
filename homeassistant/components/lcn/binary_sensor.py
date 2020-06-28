@@ -8,10 +8,12 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES
 
 from .const import (
+    ADD_ENTITIES_CALLBACKS,
     BINSENSOR_PORTS,
     CONF_DOMAIN_DATA,
     CONF_SOURCE,
     CONF_UNIQUE_DEVICE_ID,
+    DOMAIN as DOMAIN_LCN,
     SETPOINTS,
 )
 from .helpers import get_device_connection
@@ -36,6 +38,9 @@ def create_lcn_binary_sensor_entity(hass, entity_config, config_entry):
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up LCN switch entities from a config entry."""
+    callbacks = hass.data[DOMAIN_LCN][config_entry.entry_id][ADD_ENTITIES_CALLBACKS]
+    callbacks[DOMAIN_BINARY_SENSOR] = async_add_entities
+
     entities = []
 
     for entity_config in config_entry.data[CONF_ENTITIES]:

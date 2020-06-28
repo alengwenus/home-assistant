@@ -11,14 +11,16 @@ from homeassistant.const import (
 )
 
 DOMAIN = "lcn"
-DATA_LCN = "lcn"
 DEFAULT_NAME = "pchk"
+CONF_CONNECTIONS = "connections"
 
 CONF_ADDRESS_ID = "address_id"
 CONF_SEGMENT_ID = "segment_id"
 CONF_IS_GROUP = "is_group"
 
-CONF_CONNECTIONS = "connections"
+ADD_ENTITIES_CALLBACKS = "add_entities_callbacks"
+CONNECTION = "connection"
+
 CONF_DOMAIN_DATA = "domain_data"
 CONF_UNIQUE_ID = "unique_id"
 CONF_UNIQUE_DEVICE_ID = "unique_device_id"

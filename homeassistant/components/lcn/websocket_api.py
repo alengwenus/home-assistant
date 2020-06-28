@@ -19,12 +19,12 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
+    ADD_ENTITIES_CALLBACKS,
     CONF_ADDRESS_ID,
-    CONF_CONNECTIONS,
     CONF_IS_GROUP,
     CONF_OUTPUT,
     CONF_SEGMENT_ID,
-    DATA_LCN,
+    CONNECTION,
     DOMAIN,
     OUTPUT_PORTS,
     RELAY_PORTS,
@@ -147,7 +147,7 @@ async def websocket_scan_devices(hass, connection, msg):
     host_id = msg[ATTR_HOST_ID]
     config_entry = get_config_entry(hass, host_id)
 
-    host_connection = hass.data[DATA_LCN][CONF_CONNECTIONS][host_id]
+    host_connection = hass.data[DOMAIN][host_id][CONNECTION]
     await host_connection.scan_modules()
 
     lock = asyncio.Lock()
@@ -276,12 +276,16 @@ async def websocket_add_entity(hass, connection, msg):
         }
 
         # Create new entity and add to corresponding component
+        callbacks = hass.data[DOMAIN][msg[ATTR_HOST_ID]][ADD_ENTITIES_CALLBACKS]
+        async_add_entities = callbacks[msg[ATTR_DOMAIN]]
+
         entity = create_lcn_switch_entity(hass, entity_config, config_entry)
+        async_add_entities([entity])
 
-        component = hass.data[msg[ATTR_DOMAIN]]
-        platform = component._platforms[config_entry.entry_id]
+        # component = hass.data[msg[ATTR_DOMAIN]]
+        # platform = component._platforms[config_entry.entry_id]
 
-        await hass.async_add_job(platform.async_add_entities([entity]))
+        # await hass.async_add_job(platform.async_add_entities([entity]))
 
         # Add entity config to config_entry
         config_entry.data[CONF_ENTITIES].append(entity_config)

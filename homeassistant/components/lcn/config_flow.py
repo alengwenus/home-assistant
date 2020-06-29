@@ -105,6 +105,4 @@ class LcnFlowHandler(config_entries.ConfigFlow):
             self.hass.config_entries.async_update_entry(entry, data=info)
             return self.async_abort(reason="existing_configuration_updated")
 
-        return self.async_create_entry(
-            title=f"{host_name} (import from configuration.yaml)", data=info,
-        )
+        return self.async_create_entry(title=f"{host_name}", data=info,)

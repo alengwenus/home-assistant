@@ -33,7 +33,7 @@ def create_lcn_cover_entity(hass, entity_config, config_entry):
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up LCN cover entities from a config entry."""
     callbacks = hass.data[DOMAIN_LCN][config_entry.entry_id][ADD_ENTITIES_CALLBACKS]
-    callbacks[DOMAIN_COVER] = async_add_entities
+    callbacks[DOMAIN_COVER] = (async_add_entities, create_lcn_cover_entity)
 
     entities = []
 

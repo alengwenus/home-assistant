@@ -22,12 +22,11 @@ from .const import (
     ADD_ENTITIES_CALLBACKS,
     CONF_ADDRESS_ID,
     CONF_IS_GROUP,
-    CONF_OUTPUT,
     CONF_SEGMENT_ID,
+    CONF_UNIQUE_DEVICE_ID,
+    CONF_UNIQUE_ID,
     CONNECTION,
     DOMAIN,
-    OUTPUT_PORTS,
-    RELAY_PORTS,
 )
 from .helpers import (  # async_register_lcn_address_devices,
     async_update_device_config,
@@ -39,13 +38,20 @@ from .helpers import (  # async_register_lcn_address_devices,
     get_device_connection,
     get_entity_config,
 )
-from .switch import create_lcn_switch_entity
+from .schemes import (
+    DOMAIN_DATA_BINARY_SENSOR,
+    DOMAIN_DATA_CLIMATE,
+    DOMAIN_DATA_COVER,
+    DOMAIN_DATA_LIGHT,
+    DOMAIN_DATA_SCENE,
+    DOMAIN_DATA_SENSOR,
+    DOMAIN_DATA_SWITCH,
+)
 
 TYPE = "type"
 ID = "id"
 ATTR_HOST_ID = "host_id"
 ATTR_NAME = "name"
-ATTR_UNIQUE_ID = "unique_id"
 ATTR_RESOURCE = "resource"
 ATTR_SEGMENT_ID = "segment_id"
 ATTR_ADDRESS_ID = "address_id"
@@ -105,13 +111,13 @@ async def websocket_get_device_configs(hass, connection, msg):
     {
         vol.Required(TYPE): "lcn/device",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required("unique_device_id"): cv.string,
+        vol.Required(CONF_UNIQUE_DEVICE_ID): cv.string,
     }
 )
 async def websocket_get_device_config(hass, connection, msg):
     """Get device config."""
     config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
-    device_config = get_device_config(msg["unique_device_id"], config_entry)
+    device_config = get_device_config(msg[CONF_UNIQUE_DEVICE_ID], config_entry)
     connection.send_result(msg[ID], device_config)
 
 
@@ -121,7 +127,7 @@ async def websocket_get_device_config(hass, connection, msg):
     {
         vol.Required(TYPE): "lcn/entities",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required("unique_device_id"): cv.string,
+        vol.Required(CONF_UNIQUE_DEVICE_ID): cv.string,
     }
 )
 async def websocket_get_entity_configs(hass, connection, msg):
@@ -132,7 +138,7 @@ async def websocket_get_entity_configs(hass, connection, msg):
     entity_configs = [
         entity_config
         for entity_config in config_entry.data[CONF_ENTITIES]
-        if entity_config["unique_device_id"] == msg["unique_device_id"]
+        if entity_config[CONF_UNIQUE_DEVICE_ID] == msg[CONF_UNIQUE_DEVICE_ID]
     ]
     connection.send_result(msg[ID], entity_configs)
 
@@ -213,7 +219,7 @@ async def websocket_add_device(hass, connection, msg):
     {
         vol.Required(TYPE): "lcn/device/delete",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required(ATTR_UNIQUE_ID): cv.string,
+        vol.Required(CONF_UNIQUE_ID): cv.string,
     }
 )
 async def websocket_delete_device(hass, connection, msg):
@@ -221,7 +227,7 @@ async def websocket_delete_device(hass, connection, msg):
     config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
 
     device_registry = await dr.async_get_registry(hass)
-    delete_device(config_entry, device_registry, msg[ATTR_UNIQUE_ID])
+    delete_device(config_entry, device_registry, msg[CONF_UNIQUE_ID])
 
     # sort config_entry
     sort_lcn_config_entry(config_entry)
@@ -239,21 +245,25 @@ async def websocket_delete_device(hass, connection, msg):
     {
         vol.Required(TYPE): "lcn/entity/add",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required("unique_device_id"): cv.string,
+        vol.Required(CONF_UNIQUE_DEVICE_ID): cv.string,
         vol.Required(ATTR_NAME): cv.string,
         vol.Required(ATTR_DOMAIN): cv.string,
-        vol.Required(ATTR_DOMAIN_DATA): {
-            vol.Required(CONF_OUTPUT): vol.All(
-                vol.Upper, vol.In(OUTPUT_PORTS + RELAY_PORTS)
-            )
-        },
+        vol.Required(ATTR_DOMAIN_DATA): vol.Any(
+            DOMAIN_DATA_BINARY_SENSOR,
+            DOMAIN_DATA_CLIMATE,
+            DOMAIN_DATA_COVER,
+            DOMAIN_DATA_LIGHT,
+            DOMAIN_DATA_SCENE,
+            DOMAIN_DATA_SENSOR,
+            DOMAIN_DATA_SWITCH,
+        ),
     }
 )
 async def websocket_add_entity(hass, connection, msg):
     """Add an entity."""
     config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
 
-    device_config = get_device_config(msg["unique_device_id"], config_entry)
+    device_config = get_device_config(msg[CONF_UNIQUE_DEVICE_ID], config_entry)
     unique_id = generate_unique_id(
         get_device_address(device_config), (msg[ATTR_DOMAIN], msg[ATTR_DOMAIN_DATA]),
     )
@@ -267,8 +277,8 @@ async def websocket_add_entity(hass, connection, msg):
         result = False
     else:
         entity_config = {
-            ATTR_UNIQUE_ID: unique_id,
-            "unique_device_id": msg["unique_device_id"],
+            CONF_UNIQUE_ID: unique_id,
+            CONF_UNIQUE_DEVICE_ID: msg[CONF_UNIQUE_DEVICE_ID],
             CONF_NAME: msg[ATTR_NAME],
             ATTR_RESOURCE: unique_id.split("-", 2)[2],
             ATTR_DOMAIN: msg[ATTR_DOMAIN],
@@ -277,15 +287,10 @@ async def websocket_add_entity(hass, connection, msg):
 
         # Create new entity and add to corresponding component
         callbacks = hass.data[DOMAIN][msg[ATTR_HOST_ID]][ADD_ENTITIES_CALLBACKS]
-        async_add_entities = callbacks[msg[ATTR_DOMAIN]]
+        async_add_entities, create_lcn_entity = callbacks[msg[ATTR_DOMAIN]]
 
-        entity = create_lcn_switch_entity(hass, entity_config, config_entry)
+        entity = create_lcn_entity(hass, entity_config, config_entry)
         async_add_entities([entity])
-
-        # component = hass.data[msg[ATTR_DOMAIN]]
-        # platform = component._platforms[config_entry.entry_id]
-
-        # await hass.async_add_job(platform.async_add_entities([entity]))
 
         # Add entity config to config_entry
         config_entry.data[CONF_ENTITIES].append(entity_config)
@@ -307,7 +312,7 @@ async def websocket_add_entity(hass, connection, msg):
     {
         vol.Required(TYPE): "lcn/entity/delete",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required(ATTR_UNIQUE_ID): cv.string,
+        vol.Required(CONF_UNIQUE_ID): cv.string,
     }
 )
 async def websocket_delete_entity(hass, connection, msg):
@@ -315,7 +320,7 @@ async def websocket_delete_entity(hass, connection, msg):
     config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
 
     device_registry = await dr.async_get_registry(hass)
-    delete_entity(config_entry, device_registry, msg[ATTR_UNIQUE_ID])
+    delete_entity(config_entry, device_registry, msg[CONF_UNIQUE_ID])
 
     # sort config_entry
     sort_lcn_config_entry(config_entry)
@@ -335,7 +340,7 @@ async def add_device(hass, config_entry, address):
         return False  # device_config already in config_entry
 
     device_config = {
-        ATTR_UNIQUE_ID: unique_device_id,
+        CONF_UNIQUE_ID: unique_device_id,
         ATTR_NAME: "",
         ATTR_SEGMENT_ID: address[0],
         ATTR_ADDRESS_ID: address[1],
@@ -350,7 +355,7 @@ async def add_device(hass, config_entry, address):
 
     # update device info from LCN
     device_connection = get_device_connection(
-        hass, device_config[ATTR_UNIQUE_ID], config_entry
+        hass, device_config[CONF_UNIQUE_ID], config_entry
     )
     await async_update_device_config(device_connection, device_config)
 
@@ -362,8 +367,8 @@ def delete_device(config_entry, device_registry, unique_id):
     device_config = get_device_config(unique_id, config_entry)
     # delete all child devices (and entities)
     for entity_config in config_entry.data[CONF_ENTITIES][:]:
-        if entity_config["unique_device_id"] == device_config[ATTR_UNIQUE_ID]:
-            delete_entity(config_entry, device_registry, entity_config[ATTR_UNIQUE_ID])
+        if entity_config[CONF_UNIQUE_DEVICE_ID] == device_config[CONF_UNIQUE_ID]:
+            delete_entity(config_entry, device_registry, entity_config[CONF_UNIQUE_ID])
 
     # now delete module/group device
     # identifiers = {(DOMAIN, unique_id)}
@@ -415,7 +420,7 @@ async def async_create_or_update_device(device_connection, config_entry, lock):
                 ),
             )
             device_config = {
-                "unique_id": unique_device_id,
+                CONF_UNIQUE_ID: unique_device_id,
                 CONF_NAME: "",
                 CONF_SEGMENT_ID: device_connection.get_seg_id(),
                 CONF_ADDRESS_ID: device_connection.get_id(),

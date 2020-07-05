@@ -80,7 +80,7 @@ def generate_unique_id(
             elif domain_name == "cover":
                 resource = f'{domain_data["motor"]}'
             elif domain_name == "climate":
-                resource = f'{domain_data["setpoint"]}.{domain_data["source"]}'
+                resource = f'{domain_data["source"]}.{domain_data["setpoint"]}'
             elif domain_name == "scene":
                 resource = f'{domain_data["register"]}.{domain_data["scene"]}'
             else:

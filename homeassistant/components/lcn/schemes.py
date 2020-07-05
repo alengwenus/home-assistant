@@ -82,7 +82,9 @@ DOMAIN_DATA_CLIMATE = {
 
 DOMAIN_DATA_COVER = {
     vol.Required(CONF_MOTOR): vol.All(vol.Upper, vol.In(MOTOR_PORTS)),
-    vol.Optional(CONF_REVERSE_TIME): vol.All(vol.Upper, vol.In(MOTOR_REVERSE_TIME)),
+    vol.Optional(CONF_REVERSE_TIME, default="rt1200"): vol.All(
+        vol.Upper, vol.In(MOTOR_REVERSE_TIME)
+    ),
 }
 
 
@@ -138,17 +140,13 @@ DOMAIN_DATA_BASE = {
 
 BINARY_SENSORS_SCHEMA = vol.Schema({**DOMAIN_DATA_BASE, **DOMAIN_DATA_BINARY_SENSOR})
 
-
 CLIMATES_SCHEMA = vol.Schema({**DOMAIN_DATA_BASE, **DOMAIN_DATA_CLIMATE})
-
 
 COVERS_SCHEMA = vol.Schema({**DOMAIN_DATA_BASE, **DOMAIN_DATA_COVER})
 
 LIGHTS_SCHEMA = vol.Schema({**DOMAIN_DATA_BASE, **DOMAIN_DATA_LIGHT})
 
-
 SCENES_SCHEMA = vol.Schema({**DOMAIN_DATA_BASE, **DOMAIN_DATA_SCENE})
-
 
 SENSORS_SCHEMA = vol.Schema({**DOMAIN_DATA_BASE, **DOMAIN_DATA_SENSOR})
 

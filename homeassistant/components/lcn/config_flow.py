@@ -1,6 +1,7 @@
 """Config flow to configure the LCN integration."""
 from collections import OrderedDict
 import logging
+from typing import Optional, cast
 
 import pypck
 import voluptuous as vol
@@ -16,13 +17,14 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .const import CONF_DIM_MODE, CONF_SK_NUM_TRIES, DIM_MODES, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def _validate_connection(hass, user_input):
+async def _validate_connection(hass: HomeAssistantType, user_input: ConfigType) -> bool:
     host = user_input[CONF_IP_ADDRESS]
     port = user_input[CONF_PORT]
     username = user_input[CONF_USERNAME]
@@ -53,7 +55,9 @@ class LcnFlowHandler(config_entries.ConfigFlow):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_PUSH
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(
+        self, user_input: Optional[ConfigType] = None
+    ) -> ConfigType:
         """Handle a flow initiated by the user."""
         data_schema = OrderedDict()
         data_schema[vol.Required(CONF_HOST, default="pchk")] = str
@@ -72,12 +76,8 @@ class LcnFlowHandler(config_entries.ConfigFlow):
         host_name = user_input.pop(CONF_HOST)
 
         try:
-            # set a unique_id for this config flow
-            # (alternatively return already existing entry)
-            # entry = await self.async_set_unique_id(user_input[CONF_HOST])
-            # if entry:
-            #     return self.async_abort(reason="already_configured")
-            await _validate_connection(self.hass, user_input)
+            hass = cast(HomeAssistantType, self.hass)
+            await _validate_connection(hass, user_input)
         except pypck.connection.PchkAuthenticationError:
             return self.async_abort(reason="authentication_error")
         except pypck.connection.PchkLicenseError:
@@ -88,13 +88,12 @@ class LcnFlowHandler(config_entries.ConfigFlow):
             _LOGGER.error('Connection to PCHK server "%s" failed.', host_name)
             return self.async_abort(reason="connection_timeout")
 
-        # user_input["unique_id"] = generate_unique_id(user_input[CONF_HOST])
         user_input[CONF_DEVICES] = []
         user_input[CONF_ENTITIES] = []
 
         return self.async_create_entry(title=host_name, data=user_input)
 
-    async def async_step_import(self, info):
+    async def async_step_import(self, info: ConfigType) -> ConfigType:
         """Import existing configuration from LCN."""
         # check if we already have a host with the same name configured
         host_name = info.pop(CONF_HOST)
@@ -102,7 +101,8 @@ class LcnFlowHandler(config_entries.ConfigFlow):
         if entry:
             # await self.hass.config_entries.async_remove(entry.entry_id)
             entry.source = config_entries.SOURCE_IMPORT
-            self.hass.config_entries.async_update_entry(entry, data=info)
+            hass = cast(HomeAssistantType, self.hass)
+            hass.config_entries.async_update_entry(entry, data=info)
             return self.async_abort(reason="existing_configuration_updated")
 
         return self.async_create_entry(title=f"{host_name}", data=info,)

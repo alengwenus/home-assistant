@@ -1,10 +1,12 @@
 """Support for LCN scenes."""
-from typing import Any
+from typing import Any, Callable, List
 
 import pypck
 
 from homeassistant.components.scene import DOMAIN as DOMAIN_SCENE, Scene
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES
+from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .const import (
     ADD_ENTITIES_CALLBACKS,
@@ -17,11 +19,13 @@ from .const import (
     DOMAIN as DOMAIN_LCN,
     OUTPUT_PORTS,
 )
-from .helpers import get_device_connection
+from .helpers import DeviceConnectionType, get_device_connection
 from .lcn_entity import LcnEntity
 
 
-def create_lcn_scene_entity(hass, entity_config, config_entry):
+def create_lcn_scene_entity(
+    hass: HomeAssistantType, entity_config: ConfigType, config_entry: ConfigEntry
+) -> LcnEntity:
     """Set up an entity for this domain."""
     host_name = config_entry.entry_id
     device_connection = get_device_connection(
@@ -32,7 +36,11 @@ def create_lcn_scene_entity(hass, entity_config, config_entry):
     return entity
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistantType,
+    config_entry: ConfigEntry,
+    async_add_entities: Callable[[List[LcnEntity]], None],
+) -> None:
     """Set up LCN switch entities from a config entry."""
     callbacks = hass.data[DOMAIN_LCN][config_entry.entry_id][ADD_ENTITIES_CALLBACKS]
     callbacks[DOMAIN_SCENE] = (async_add_entities, create_lcn_scene_entity)
@@ -49,7 +57,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnScene(LcnEntity, Scene):
     """Representation of a LCN scene."""
 
-    def __init__(self, config, host_id, device_connection):
+    def __init__(
+        self, config: ConfigType, host_id: str, device_connection: DeviceConnectionType
+    ) -> None:
         """Initialize the LCN scene."""
         super().__init__(config, host_id, device_connection)
 

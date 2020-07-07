@@ -1,4 +1,6 @@
 """Support for LCN climate control."""
+from typing import Callable, List, Optional
+
 import pypck
 
 from homeassistant.components.climate import (
@@ -6,12 +8,14 @@ from homeassistant.components.climate import (
     ClimateEntity,
     const,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_DOMAIN,
     CONF_ENTITIES,
     CONF_UNIT_OF_MEASUREMENT,
 )
+from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .const import (
     ADD_ENTITIES_CALLBACKS,
@@ -24,22 +28,27 @@ from .const import (
     CONF_UNIQUE_DEVICE_ID,
     DOMAIN as DOMAIN_LCN,
 )
-from .helpers import get_device_connection
+from .helpers import DeviceConnectionType, InputType, get_device_connection
 from .lcn_entity import LcnEntity
 
 
-def create_lcn_climate_entity(hass, entity_config, config_entry):
+def create_lcn_climate_entity(
+    hass: HomeAssistantType, entity_config: ConfigType, config_entry: ConfigEntry
+) -> LcnEntity:
     """Set up an entity for this domain."""
     host_name = config_entry.entry_id
     device_connection = get_device_connection(
         hass, entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
     )
 
-    entity = LcnClimate(entity_config, host_name, device_connection)
-    return entity
+    return LcnClimate(entity_config, host_name, device_connection)
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistantType,
+    config_entry: ConfigEntry,
+    async_add_entities: Callable[[List[LcnEntity]], None],
+) -> None:
     """Set up LCN switch entities from a config entry."""
     callbacks = hass.data[DOMAIN_LCN][config_entry.entry_id][ADD_ENTITIES_CALLBACKS]
     callbacks[DOMAIN_CLIMATE] = (async_add_entities, create_lcn_climate_entity)
@@ -58,7 +67,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnClimate(LcnEntity, ClimateEntity):
     """Representation of a LCN climate device."""
 
-    def __init__(self, config, host_id, device_connection):
+    def __init__(
+        self, config: ConfigType, host_id: str, device_connection: DeviceConnectionType
+    ) -> None:
         """Initialize of a LCN climate device."""
         super().__init__(config, host_id, device_connection)
 
@@ -73,18 +84,18 @@ class LcnClimate(LcnEntity, ClimateEntity):
         self._max_temp = config[CONF_DOMAIN_DATA][CONF_MAX_TEMP]
         self._min_temp = config[CONF_DOMAIN_DATA][CONF_MIN_TEMP]
 
-        self._current_temperature = None
-        self._target_temperature = None
-        self._is_on = None
+        self._current_temperature: Optional[float] = None
+        self._target_temperature: Optional[float] = None
+        self._is_on = True
 
-    async def async_added_to_hass(self):
+    async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
         if not self.device_connection.is_group():
             await self.device_connection.activate_status_request_handler(self.variable)
             await self.device_connection.activate_status_request_handler(self.setpoint)
 
-    async def async_will_remove_from_hass(self):
+    async def async_will_remove_from_hass(self) -> None:
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
         if not self.device_connection.is_group():
@@ -92,27 +103,27 @@ class LcnClimate(LcnEntity, ClimateEntity):
             await self.device_connection.cancel_status_request_handler(self.setpoint)
 
     @property
-    def supported_features(self):
+    def supported_features(self) -> int:
         """Return the list of supported features."""
         return const.SUPPORT_TARGET_TEMPERATURE
 
     @property
-    def temperature_unit(self):
+    def temperature_unit(self) -> str:
         """Return the unit of measurement."""
         return self.unit.value
 
     @property
-    def current_temperature(self):
+    def current_temperature(self) -> Optional[float]:
         """Return the current temperature."""
         return self._current_temperature
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> Optional[float]:
         """Return the temperature we try to reach."""
         return self._target_temperature
 
     @property
-    def hvac_mode(self):
+    def hvac_mode(self) -> str:
         """Return hvac operation ie. heat, cool mode.
 
         Need to be one of HVAC_MODE_*.
@@ -122,7 +133,7 @@ class LcnClimate(LcnEntity, ClimateEntity):
         return const.HVAC_MODE_OFF
 
     @property
-    def hvac_modes(self):
+    def hvac_modes(self) -> List[str]:
         """Return the list of available hvac operation modes.
 
         Need to be a subset of HVAC_MODES.
@@ -133,16 +144,16 @@ class LcnClimate(LcnEntity, ClimateEntity):
         return modes
 
     @property
-    def max_temp(self):
+    def max_temp(self) -> float:
         """Return the maximum temperature."""
         return self._max_temp
 
     @property
-    def min_temp(self):
+    def min_temp(self) -> float:
         """Return the minimum temperature."""
         return self._min_temp
 
-    async def async_set_hvac_mode(self, hvac_mode):
+    async def async_set_hvac_mode(self, hvac_mode: str) -> None:
         """Set new target hvac mode."""
         if hvac_mode == const.HVAC_MODE_HEAT:
             self._is_on = True
@@ -154,7 +165,7 @@ class LcnClimate(LcnEntity, ClimateEntity):
 
         self.async_write_ha_state()
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs) -> None:
         """Set new target temperature."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
@@ -166,7 +177,7 @@ class LcnClimate(LcnEntity, ClimateEntity):
         )
         self.async_write_ha_state()
 
-    def input_received(self, input_obj):
+    def input_received(self, input_obj: InputType) -> None:
         """Set temperature value when LCN input object is received."""
         if not isinstance(input_obj, pypck.inputs.ModStatusVar):
             return

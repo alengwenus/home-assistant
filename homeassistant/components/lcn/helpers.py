@@ -47,6 +47,7 @@ DeviceConnectionType = Union[
     pypck.module.ModuleConnection, pypck.module.GroupConnection
 ]
 PchkConnectionManagerType = Type[pypck.connection.PchkConnectionManager]
+InputType = Type[pypck.inputs.Input]
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -58,9 +58,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnRegulatorLockSensor(LcnEntity, BinarySensorEntity):
     """Representation of a LCN binary sensor for regulator locks."""
 
-    def __init__(self, config, host_id, address_connection):
+    def __init__(self, config, host_id, device_connection):
         """Initialize the LCN binary sensor."""
-        super().__init__(config, host_id, address_connection)
+        super().__init__(config, host_id, device_connection)
 
         self.setpoint_variable = pypck.lcn_defs.Var[
             config[CONF_DOMAIN_DATA][CONF_SOURCE]
@@ -71,16 +71,16 @@ class LcnRegulatorLockSensor(LcnEntity, BinarySensorEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.activate_status_request_handler(
+        if not self.device_connection.is_group():
+            await self.device_connection.activate_status_request_handler(
                 self.setpoint_variable
             )
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.cancel_status_request_handler(
+        if not self.device_connection.is_group():
+            await self.device_connection.cancel_status_request_handler(
                 self.setpoint_variable
             )
 
@@ -104,9 +104,9 @@ class LcnRegulatorLockSensor(LcnEntity, BinarySensorEntity):
 class LcnBinarySensor(LcnEntity, BinarySensorEntity):
     """Representation of a LCN binary sensor for binary sensor ports."""
 
-    def __init__(self, config, host_id, address_connection):
+    def __init__(self, config, host_id, device_connection):
         """Initialize the LCN binary sensor."""
-        super().__init__(config, host_id, address_connection)
+        super().__init__(config, host_id, device_connection)
 
         self.bin_sensor_port = pypck.lcn_defs.BinSensorPort[
             config[CONF_DOMAIN_DATA][CONF_SOURCE]
@@ -117,16 +117,16 @@ class LcnBinarySensor(LcnEntity, BinarySensorEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.activate_status_request_handler(
+        if not self.device_connection.is_group():
+            await self.device_connection.activate_status_request_handler(
                 self.bin_sensor_port
             )
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.cancel_status_request_handler(
+        if not self.device_connection.is_group():
+            await self.device_connection.cancel_status_request_handler(
                 self.bin_sensor_port
             )
 
@@ -147,9 +147,9 @@ class LcnBinarySensor(LcnEntity, BinarySensorEntity):
 class LcnLockKeysSensor(LcnEntity, BinarySensorEntity):
     """Representation of a LCN sensor for key locks."""
 
-    def __init__(self, config, host_id, address_connection):
+    def __init__(self, config, host_id, device_connection):
         """Initialize the LCN sensor."""
-        super().__init__(config, host_id, address_connection)
+        super().__init__(config, host_id, device_connection)
 
         self.source = pypck.lcn_defs.Key[config[CONF_DOMAIN_DATA][CONF_SOURCE]]
         self._value = None
@@ -157,14 +157,14 @@ class LcnLockKeysSensor(LcnEntity, BinarySensorEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.activate_status_request_handler(self.source)
+        if not self.device_connection.is_group():
+            await self.device_connection.activate_status_request_handler(self.source)
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.cancel_status_request_handler(self.source)
+        if not self.device_connection.is_group():
+            await self.device_connection.cancel_status_request_handler(self.source)
 
     @property
     def is_on(self):

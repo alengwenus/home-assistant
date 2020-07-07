@@ -49,9 +49,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnScene(LcnEntity, Scene):
     """Representation of a LCN scene."""
 
-    def __init__(self, config, host_id, address_connection):
+    def __init__(self, config, host_id, device_connection):
         """Initialize the LCN scene."""
-        super().__init__(config, host_id, address_connection)
+        super().__init__(config, host_id, device_connection)
 
         self.register_id = config[CONF_DOMAIN_DATA][CONF_REGISTER]
         self.scene_id = config[CONF_DOMAIN_DATA][CONF_SCENE]
@@ -73,7 +73,7 @@ class LcnScene(LcnEntity, Scene):
 
     async def async_activate(self, **kwargs: Any) -> None:
         """Activate scene."""
-        self.address_connection.activate_scene(
+        self.device_connection.activate_scene(
             self.register_id,
             self.scene_id,
             self.output_ports,

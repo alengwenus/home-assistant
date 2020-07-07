@@ -1,37 +1,36 @@
 """Entity class that represents LCN entity."""
 from homeassistant.const import CONF_NAME
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.typing import ConfigType
 
 from .const import CONF_UNIQUE_DEVICE_ID, CONF_UNIQUE_ID, DOMAIN
-
-# from .helpers import address_repr
+from .helpers import DeviceConnectionType
 
 
 class LcnEntity(Entity):
     """Parent class for all entities associated with the LCN component."""
 
-    def __init__(self, config, host_id, address_connection):
+    def __init__(
+        self, config: ConfigType, host_id: str, device_connection: DeviceConnectionType
+    ) -> None:
         """Initialize the LCN device."""
         self.config = config
         self.host_id = host_id
-        self.address_connection = address_connection
+        self.device_connection = device_connection
         self._name = config[CONF_NAME]
-        # self._unique_id = config["unique_id"]
 
     @property
     def unique_id(self):
         """Return a unique ID."""
-        # return f"{self.host_id}-{self.config[CONF_UNIQUE_ID]}"
         return f"{self.host_id}-{self.config[CONF_UNIQUE_ID]}"
 
     @property
     def device_info(self):
         """Return device specific attributes."""
-        if self.address_connection.is_group():
+        if self.device_connection.is_group():
             hw_type = f"group ({self.unique_id.split('-', 2)[2]})"
         else:
             hw_type = f"module ({self.unique_id.split('-', 2)[2]})"
-            # hw_type = f'0x{self.address_connection.hw_type:02X}'
 
         return {
             "identifiers": {(DOMAIN, self.host_id, self.config[CONF_UNIQUE_ID])},
@@ -48,7 +47,7 @@ class LcnEntity(Entity):
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
-        self.unregister_for_inputs = self.address_connection.register_for_inputs(
+        self.unregister_for_inputs = self.device_connection.register_for_inputs(
             self.input_received
         )
 

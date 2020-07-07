@@ -54,9 +54,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnVariableSensor(LcnEntity):
     """Representation of a LCN sensor for variables."""
 
-    def __init__(self, config, host_id, address_connection):
+    def __init__(self, config, host_id, device_connection):
         """Initialize the LCN sensor."""
-        super().__init__(config, host_id, address_connection)
+        super().__init__(config, host_id, device_connection)
 
         self.variable = pypck.lcn_defs.Var[config[CONF_DOMAIN_DATA][CONF_SOURCE]]
         self.unit = pypck.lcn_defs.VarUnit.parse(
@@ -68,14 +68,14 @@ class LcnVariableSensor(LcnEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.activate_status_request_handler(self.variable)
+        if not self.device_connection.is_group():
+            await self.device_connection.activate_status_request_handler(self.variable)
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.cancel_status_request_handler(self.variable)
+        if not self.device_connection.is_group():
+            await self.device_connection.cancel_status_request_handler(self.variable)
 
     @property
     def state(self):
@@ -102,9 +102,9 @@ class LcnVariableSensor(LcnEntity):
 class LcnLedLogicSensor(LcnEntity):
     """Representation of a LCN sensor for leds and logicops."""
 
-    def __init__(self, config, host_id, address_connection):
+    def __init__(self, config, host_id, device_connection):
         """Initialize the LCN sensor."""
-        super().__init__(config, host_id, address_connection)
+        super().__init__(config, host_id, device_connection)
 
         if config[CONF_DOMAIN_DATA][CONF_SOURCE] in LED_PORTS:
             self.source = pypck.lcn_defs.LedPort[config[CONF_DOMAIN_DATA][CONF_SOURCE]]
@@ -118,14 +118,14 @@ class LcnLedLogicSensor(LcnEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.activate_status_request_handler(self.source)
+        if not self.device_connection.is_group():
+            await self.device_connection.activate_status_request_handler(self.source)
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.cancel_status_request_handler(self.source)
+        if not self.device_connection.is_group():
+            await self.device_connection.cancel_status_request_handler(self.source)
 
     @property
     def state(self):

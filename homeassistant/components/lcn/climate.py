@@ -58,9 +58,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LcnClimate(LcnEntity, ClimateEntity):
     """Representation of a LCN climate device."""
 
-    def __init__(self, config, host_id, address_connection):
+    def __init__(self, config, host_id, device_connection):
         """Initialize of a LCN climate device."""
-        super().__init__(config, host_id, address_connection)
+        super().__init__(config, host_id, device_connection)
 
         self.variable = pypck.lcn_defs.Var[config[CONF_DOMAIN_DATA][CONF_SOURCE]]
         self.setpoint = pypck.lcn_defs.Var[config[CONF_DOMAIN_DATA][CONF_SETPOINT]]
@@ -80,16 +80,16 @@ class LcnClimate(LcnEntity, ClimateEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.activate_status_request_handler(self.variable)
-            await self.address_connection.activate_status_request_handler(self.setpoint)
+        if not self.device_connection.is_group():
+            await self.device_connection.activate_status_request_handler(self.variable)
+            await self.device_connection.activate_status_request_handler(self.setpoint)
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
         await super().async_will_remove_from_hass()
-        if not self.address_connection.is_group():
-            await self.address_connection.cancel_status_request_handler(self.variable)
-            await self.address_connection.cancel_status_request_handler(self.setpoint)
+        if not self.device_connection.is_group():
+            await self.device_connection.cancel_status_request_handler(self.variable)
+            await self.device_connection.cancel_status_request_handler(self.setpoint)
 
     @property
     def supported_features(self):
@@ -146,10 +146,10 @@ class LcnClimate(LcnEntity, ClimateEntity):
         """Set new target hvac mode."""
         if hvac_mode == const.HVAC_MODE_HEAT:
             self._is_on = True
-            self.address_connection.lock_regulator(self.regulator_id, False)
+            self.device_connection.lock_regulator(self.regulator_id, False)
         elif hvac_mode == const.HVAC_MODE_OFF:
             self._is_on = False
-            self.address_connection.lock_regulator(self.regulator_id, True)
+            self.device_connection.lock_regulator(self.regulator_id, True)
             self._target_temperature = None
 
         self.async_write_ha_state()
@@ -161,7 +161,7 @@ class LcnClimate(LcnEntity, ClimateEntity):
             return
 
         self._target_temperature = temperature
-        self.address_connection.var_abs(
+        self.device_connection.var_abs(
             self.setpoint, self._target_temperature, self.unit
         )
         self.async_write_ha_state()

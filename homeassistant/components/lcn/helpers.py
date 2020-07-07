@@ -2,10 +2,12 @@
 import asyncio
 import logging
 import re
+from typing import List, Optional, Tuple, Type, Union
 
 import pypck
 import voluptuous as vol
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_ADDRESS,
     CONF_DEVICES,
@@ -20,6 +22,7 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .const import (
     CONF_ADDRESS_ID,
@@ -38,6 +41,12 @@ from .const import (
     DEFAULT_NAME,
     DOMAIN,
 )
+
+# typing
+DeviceConnectionType = Union[
+    pypck.module.ModuleConnection, pypck.module.GroupConnection
+]
+PchkConnectionManagerType = Type[pypck.connection.PchkConnectionManager]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,10 +68,8 @@ DOMAIN_LOOKUP = {
 
 
 def generate_unique_id(
-    address=None,
-    domain_config=None,  # (domain_name, domain_data)
-    # host_id=None,
-    # platform=DOMAIN,
+    address: Optional[Tuple[int, int, bool]] = None,
+    domain_config: Optional[Tuple[str, ConfigType]] = None,
 ):
     """Generate a unique_id from the given parameters."""
     # unique_id = f"{platform}.{host_name}"
@@ -94,7 +101,7 @@ def generate_unique_id(
 #
 
 
-def import_lcn_config(lcn_config):
+def import_lcn_config(lcn_config: ConfigType) -> List[ConfigType]:
     """Convert lcn settings from configuration.yaml to config_entries data."""
     data = {}
     for connection in lcn_config[CONF_CONNECTIONS]:
@@ -162,7 +169,7 @@ def import_lcn_config(lcn_config):
                 }
                 data[host_name][CONF_ENTITIES].append(entity_config)
 
-    config_entries_data = data.values()
+    config_entries_data = list(data.values())
     return config_entries_data
 
 
@@ -171,7 +178,9 @@ def import_lcn_config(lcn_config):
 #
 
 
-async def async_update_lcn_host_device(hass, config_entry):
+async def async_update_lcn_host_device(
+    hass: HomeAssistantType, config_entry: ConfigEntry
+) -> None:
     """Register LCN host for given config_entry."""
     device_registry = await dr.async_get_registry(hass)
     # host_name = config_entry.data[CONF_HOST]
@@ -196,7 +205,9 @@ async def async_update_lcn_host_device(hass, config_entry):
         )
 
 
-async def async_update_lcn_address_devices(hass, config_entry):
+async def async_update_lcn_address_devices(
+    hass: HomeAssistantType, config_entry: ConfigEntry
+) -> None:
     """Register LCN modules and groups defined in config_entry as devices.
 
     The name of all given address_connections is collected and the devices
@@ -242,18 +253,14 @@ async def async_update_lcn_address_devices(hass, config_entry):
             )
 
 
-# async def async_update_device_registry(hass, config_entry):
-#     """Register LCN host and all devices for given config_entry in DeviceRegistry."""
-#     await async_register_lcn_host_device(hass, config_entry)
-#     await async_register_lcn_address_devices(hass, config_entry)
-
-
 #
 # Get device infos from LCN
 #
 
 
-async def async_update_device_config(device_connection, device_config):
+async def async_update_device_config(
+    device_connection: DeviceConnectionType, device_config: ConfigType
+):
     """Fill missing values in device_config from LCN."""
     if not device_config[CONF_IS_GROUP]:
         await device_connection.serial_known
@@ -277,7 +284,9 @@ async def async_update_device_config(device_connection, device_config):
         device_config[CONF_NAME] = device_name
 
 
-async def async_update_config_entry(hass, config_entry):
+async def async_update_config_entry(
+    hass: HomeAssistantType, config_entry: ConfigEntry
+) -> None:
     """Fill missing values in config_entry with information from LCN."""
     coros = []
     for device_config in config_entry.data[CONF_DEVICES]:
@@ -292,12 +301,14 @@ async def async_update_config_entry(hass, config_entry):
     hass.config_entries.async_update_entry(config_entry)
 
 
-def get_config_entry(hass, host_id):
+def get_config_entry(hass: HomeAssistantType, host_id: str) -> Optional[ConfigEntry]:
     """Return the config_entry with given host."""
     return hass.config_entries.async_get_entry(host_id)
 
 
-def get_device_config(unique_device_id, config_entry):
+def get_device_config(
+    unique_device_id: str, config_entry: ConfigEntry
+) -> Optional[ConfigType]:
     """Return the configuration for given unique_device_id."""
     for device_config in config_entry.data[CONF_DEVICES]:
         if device_config[CONF_UNIQUE_ID] == unique_device_id:
@@ -305,7 +316,7 @@ def get_device_config(unique_device_id, config_entry):
     return None
 
 
-def get_entity_config(unique_entity_id, config_entry):
+def get_entity_config(unique_entity_id: str, config_entry: ConfigEntry) -> ConfigType:
     """Return the configuration for given unique_entity_id."""
     return next(
         entity_config
@@ -314,7 +325,7 @@ def get_entity_config(unique_entity_id, config_entry):
     )
 
 
-def get_device_address(device_config):
+def get_device_address(device_config: ConfigType) -> Tuple[int, int, bool]:
     """Return a tuple with address information."""
     return (
         device_config[CONF_SEGMENT_ID],
@@ -323,16 +334,22 @@ def get_device_address(device_config):
     )
 
 
-def get_device_connection(hass, unique_device_id, config_entry):
+def get_device_connection(
+    hass: HomeAssistantType, unique_device_id: str, config_entry: ConfigEntry
+) -> Optional[DeviceConnectionType]:
     """Return a lcn device_connection."""
     device_config = get_device_config(unique_device_id, config_entry)
-    host_connection = hass.data[DOMAIN][config_entry.entry_id][CONNECTION]
-    addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
-    device_connection = host_connection.get_address_conn(addr)
-    return device_connection
+    if device_config:
+        host_connection = hass.data[DOMAIN][config_entry.entry_id][CONNECTION]
+        addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+        device_connection = host_connection.get_address_conn(addr)
+        return device_connection
+    return None
 
 
-def get_connection(hosts, host_name=None):
+def get_connection(
+    hosts: List[PchkConnectionManagerType], host_name: Optional[str] = None
+) -> PchkConnectionManagerType:
     """Return the connection object from list."""
     if host_name is None:
         host = hosts[0]
@@ -345,7 +362,7 @@ def get_connection(hosts, host_name=None):
     return host
 
 
-def has_unique_host_names(hosts):
+def has_unique_host_names(hosts: List[ConfigType]) -> List[ConfigType]:
     """Validate that all connection names are unique.
 
     Use 'pchk' as default connection_name (or add a numeric suffix if
@@ -366,7 +383,7 @@ def has_unique_host_names(hosts):
     return hosts
 
 
-def is_address(value):
+def is_address(value: str) -> Tuple[Tuple[int, int, bool], str]:
     """Validate the given address string.
 
     Examples for S000M005 at myhome:
@@ -387,7 +404,7 @@ def is_address(value):
     raise vol.error.Invalid("Not a valid address string.")
 
 
-def is_relays_states_string(states_string):
+def is_relays_states_string(states_string: str) -> List[str]:
     """Validate the given states string and return states list."""
     if len(states_string) == 8:
         states = []
@@ -407,7 +424,7 @@ def is_relays_states_string(states_string):
     raise vol.error.Invalid("Wrong length of relay state string.")
 
 
-def is_key_lock_states_string(states_string):
+def is_key_lock_states_string(states_string: str) -> List[str]:
     """Validate the given states string and returns states list."""
     if len(states_string) == 8:
         states = []

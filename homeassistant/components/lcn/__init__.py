@@ -6,6 +6,7 @@ import pypck
 from homeassistant import config_entries
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from . import websocket_api as wsapi
 from .const import (
@@ -41,7 +42,9 @@ from .services import (
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, config_entry):
+async def async_setup_entry(
+    hass: HomeAssistantType, config_entry: config_entries.ConfigEntry
+) -> bool:
     """Set up a connection to PCHK host from a config entry."""
     host_id = config_entry.entry_id
     host_address = config_entry.data[CONF_IP_ADDRESS]
@@ -121,7 +124,7 @@ async def async_setup_entry(hass, config_entry):
             "sensor",
             "switch",
         ]:
-            hass.async_add_job(
+            hass.async_create_task(
                 hass.config_entries.async_forward_entry_setup(config_entry, domain)
             )
 
@@ -131,7 +134,9 @@ async def async_setup_entry(hass, config_entry):
     return True
 
 
-async def async_unload_entry(hass, config_entry):
+async def async_unload_entry(
+    hass: HomeAssistantType, config_entry: config_entries.ConfigEntry
+) -> bool:
     """Close connection to PCHK host represented by config_entry."""
     # forward unloading to platforms
     await hass.config_entries.async_forward_entry_unload(config_entry, "switch")
@@ -145,7 +150,7 @@ async def async_unload_entry(hass, config_entry):
     return True
 
 
-async def async_setup(hass, config):
+async def async_setup(hass: HomeAssistantType, config: ConfigType) -> bool:
     """Set up the LCN component."""
     hass.data[DOMAIN] = {}
 

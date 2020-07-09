@@ -1,7 +1,9 @@
 """Tests for LCN config flow."""
 import pypck
+import pytest
 
 from homeassistant import data_entry_flow
+from homeassistant.components.lcn.config_flow import _validate_connection
 from homeassistant.components.lcn.const import (
     CONF_DIM_MODE,
     CONF_SK_NUM_TRIES,
@@ -30,7 +32,16 @@ USER_INPUT = {
 }
 
 
-async def test_flow_manual_configuration(hass):
+@pytest.fixture(name="mock_setup")
+def mock_setup():
+    """Mock entry setup."""
+    with patch(
+        "homeassistant.components.lcn.async_setup_entry", return_value=True,
+    ):
+        yield
+
+
+async def test_flow_manual_configuration(hass, mock_setup):
     """Test that config flow works with manual configuration."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN_LCN, context={"source": "user"}
@@ -41,7 +52,7 @@ async def test_flow_manual_configuration(hass):
 
     with patch("homeassistant.components.lcn.config_flow._validate_connection"):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input=USER_INPUT
+            result["flow_id"], user_input=USER_INPUT.copy()
         )
 
     assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
@@ -58,7 +69,7 @@ async def test_flow_manual_configuration(hass):
     }
 
 
-async def test_flow_fails_authentication_error(hass):
+async def test_flow_fails_authentication_error(hass, mock_setup):
     """Test that config flow fails on authentication error."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN_LCN, context={"source": "user"}
@@ -72,14 +83,14 @@ async def test_flow_fails_authentication_error(hass):
         side_effect=pypck.connection.PchkAuthenticationError(),
     ):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input=USER_INPUT
+            result["flow_id"], user_input=USER_INPUT.copy()
         )
 
     assert result["type"] == "abort"
     assert result["reason"] == "authentication_error"
 
 
-async def test_flow_fails_license_error(hass):
+async def test_flow_fails_license_error(hass, mock_setup):
     """Test that config flow fails on authentication error."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN_LCN, context={"source": "user"}
@@ -93,14 +104,14 @@ async def test_flow_fails_license_error(hass):
         side_effect=pypck.connection.PchkLicenseError(),
     ):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input=USER_INPUT
+            result["flow_id"], user_input=USER_INPUT.copy()
         )
 
     assert result["type"] == "abort"
     assert result["reason"] == "license_error"
 
 
-async def test_flow_fails_lcn_not_connected_error(hass):
+async def test_flow_fails_lcn_not_connected_error(hass, mock_setup):
     """Test that config flow fails on authentication error."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN_LCN, context={"source": "user"}
@@ -114,14 +125,14 @@ async def test_flow_fails_lcn_not_connected_error(hass):
         side_effect=pypck.connection.PchkLcnNotConnectedError(),
     ):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input=USER_INPUT
+            result["flow_id"], user_input=USER_INPUT.copy()
         )
 
     assert result["type"] == "abort"
     assert result["reason"] == "lcn_not_connected_error"
 
 
-async def test_flow_fails_timeout_error(hass):
+async def test_flow_fails_timeout_error(hass, mock_setup):
     """Test that config flow fails on authentication error."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN_LCN, context={"source": "user"}
@@ -135,8 +146,52 @@ async def test_flow_fails_timeout_error(hass):
         side_effect=TimeoutError(),
     ):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input=USER_INPUT
+            result["flow_id"], user_input=USER_INPUT.copy()
         )
 
     assert result["type"] == "abort"
     assert result["reason"] == "connection_timeout"
+
+
+async def test_flow_import_configuration(hass, mock_setup):
+    """Test that config flow works with manual configuration."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN_LCN, data=USER_INPUT.copy(), context={"source": "import"}
+    )
+
+    assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+    assert result["title"] == USER_INPUT[CONF_HOST]
+    assert result["data"][CONF_IP_ADDRESS] == USER_INPUT[CONF_IP_ADDRESS]
+    assert result["data"][CONF_PORT] == USER_INPUT[CONF_PORT]
+    assert result["data"][CONF_USERNAME] == USER_INPUT[CONF_USERNAME]
+    assert result["data"][CONF_PASSWORD] == USER_INPUT[CONF_PASSWORD]
+    assert result["data"][CONF_SK_NUM_TRIES] == USER_INPUT[CONF_SK_NUM_TRIES]
+    assert result["data"][CONF_DIM_MODE] == USER_INPUT[CONF_DIM_MODE]
+
+
+async def test_flow_import_configuration_updated(hass, mock_setup):
+    """Test that config flow works with manual configuration."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN_LCN, data=USER_INPUT.copy(), context={"source": "import"}
+    )
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN_LCN, data=USER_INPUT.copy(), context={"source": "import"}
+    )
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "existing_configuration_updated"
+
+
+async def test_validate_connection(hass):
+    """Test the connection validation."""
+    user_input = USER_INPUT.copy()
+    user_input.pop(CONF_HOST)
+
+    with patch("pypck.connection.PchkConnectionManager.async_connect") as async_connect:
+        with patch("pypck.connection.PchkConnectionManager.async_close") as async_close:
+            result = await _validate_connection(hass, user_input=user_input)
+
+    assert async_connect.is_called
+    assert async_close.is_called
+    assert result is True

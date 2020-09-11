@@ -5,16 +5,10 @@ import pypck
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .const import CONF_DIM_MODE, CONF_SK_NUM_TRIES, CONNECTION, DOMAIN
-from .helpers import (
-    async_update_config_entry,
-    async_update_lcn_address_devices,
-    async_update_lcn_host_device,
-    import_lcn_config,
-)
+from .helpers import async_update_config_entry, import_lcn_config
 from .schemes import CONFIG_SCHEMA  # noqa: 401
 from .services import (
     DynText,
@@ -90,19 +84,6 @@ async def async_setup_entry(
 
         # Update config_entry with LCN device serials
         await hass.async_create_task(async_update_config_entry(hass, config_entry))
-
-        # Cleanup device registry, if we imported from configuration.yaml to remove
-        # orphans when entities were removed from configuration
-        if config_entry.source == config_entries.SOURCE_IMPORT:
-            device_registry = await dr.async_get_registry(hass)
-            device_registry.async_clear_config_entry(config_entry.entry_id)
-            config_entry.source = config_entries.SOURCE_USER
-
-        await hass.async_create_task(async_update_lcn_host_device(hass, config_entry))
-
-        await hass.async_create_task(
-            async_update_lcn_address_devices(hass, config_entry)
-        )
 
         # forward config_entry to components
         for domain in [

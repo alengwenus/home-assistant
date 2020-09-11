@@ -1,11 +1,10 @@
 """Entity class that represents LCN entity."""
-from typing import Any, Dict
 
 from homeassistant.const import CONF_NAME
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
 
-from .const import CONF_UNIQUE_DEVICE_ID, CONF_UNIQUE_ID, DOMAIN
+from .const import CONF_UNIQUE_ID
 from .helpers import DeviceConnectionType, InputType
 
 
@@ -25,22 +24,6 @@ class LcnEntity(Entity):
     def unique_id(self) -> str:
         """Return a unique ID."""
         return f"{self.host_id}-{self.config[CONF_UNIQUE_ID]}"
-
-    @property
-    def device_info(self) -> Dict[str, Any]:
-        """Return device specific attributes."""
-        if self.device_connection.is_group():
-            hw_type = f"group ({self.unique_id.split('-', 2)[2]})"
-        else:
-            hw_type = f"module ({self.unique_id.split('-', 2)[2]})"
-
-        return {
-            "identifiers": {(DOMAIN, self.host_id, self.config[CONF_UNIQUE_ID])},
-            "name": self.name,
-            "manufacturer": "LCN",
-            "model": hw_type,
-            "via_device": (DOMAIN, self.host_id, self.config[CONF_UNIQUE_DEVICE_ID]),
-        }
 
     @property
     def should_poll(self) -> bool:

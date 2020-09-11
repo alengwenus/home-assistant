@@ -21,7 +21,6 @@ from homeassistant.const import (
     CONF_RESOURCE,
     CONF_USERNAME,
 )
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .const import (
@@ -172,86 +171,6 @@ def import_lcn_config(lcn_config: ConfigType) -> List[ConfigType]:
 
     config_entries_data = list(data.values())
     return config_entries_data
-
-
-#
-# Register LCN devices from ConfigEntry (if not already registered)
-#
-
-
-async def async_update_lcn_host_device(
-    hass: HomeAssistantType, config_entry: ConfigEntry
-) -> None:
-    """Register LCN host for given config_entry."""
-    device_registry = await dr.async_get_registry(hass)
-    # host_name = config_entry.data[CONF_HOST]
-    # unique_host_id = config_entry.data[CONF_UNIQUE_ID]
-    # identifiers = {(DOMAIN, unique_host_id)}
-    identifiers = {(DOMAIN, config_entry.entry_id)}
-    device_config = dict(
-        # config_entry_id=config_entry.entry_id,
-        manufacturer="LCN",
-        name=f"{config_entry.title}",
-        model="PCHK",
-    )
-
-    device = device_registry.async_get_device(identifiers, set())
-    if device:  # update device properties if already in registry
-        device_registry.async_update_device(device.id, **device_config)
-    else:
-        device = device_registry.async_get_or_create(
-            config_entry_id=config_entry.entry_id,
-            identifiers=identifiers,
-            **device_config,
-        )
-
-
-async def async_update_lcn_address_devices(
-    hass: HomeAssistantType, config_entry: ConfigEntry
-) -> None:
-    """Register LCN modules and groups defined in config_entry as devices.
-
-    The name of all given address_connections is collected and the devices
-    are updated.
-    """
-    # unique_host_id = config_entry.data[CONF_UNIQUE_ID]
-    # host_identifier = (DOMAIN, unique_host_id)
-    host_identifier = (DOMAIN, config_entry.entry_id)
-    device_registry = await dr.async_get_registry(hass)
-
-    device_data = dict(
-        # config_entry_id=config_entry.entry_id,
-        manufacturer="LCN",
-        # via_device=host_identifier,
-    )
-
-    for device_config in config_entry.data[CONF_DEVICES]:
-        unique_device_id = device_config[CONF_UNIQUE_ID]
-        device_name = device_config[CONF_NAME]
-        # identifiers = {(DOMAIN, unique_device_id)}
-        identifiers = {(DOMAIN, config_entry.entry_id, unique_device_id)}
-
-        if device_config[CONF_IS_GROUP]:
-            # get group info
-            # device_model = f"group ({unique_device_id.split('.', 2)[2]})"
-            device_model = f"group ({unique_device_id})"
-        else:
-            # get module info
-            # device_model = f"module ({unique_device_id.split('.', 2)[2]})"
-            device_model = f"module ({unique_device_id})"
-            device_data.update(sw_version=f"{device_config[CONF_SOFTWARE_SERIAL]:06X}")
-
-        device_data.update(name=device_name, model=device_model)
-        device = device_registry.async_get_device(identifiers, set())
-        if device:  # update device properties if already in registry
-            device_registry.async_update_device(device.id, **device_data)
-        else:
-            device = device_registry.async_get_or_create(
-                config_entry_id=config_entry.entry_id,
-                identifiers=identifiers,
-                via_device=host_identifier,
-                **device_data,
-            )
 
 
 #

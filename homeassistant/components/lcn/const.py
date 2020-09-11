@@ -11,10 +11,26 @@ from homeassistant.const import (
 )
 
 DOMAIN = "lcn"
-DATA_LCN = "lcn"
 DEFAULT_NAME = "pchk"
-
 CONF_CONNECTIONS = "connections"
+
+CONF_ADDRESS_ID = "address_id"
+CONF_SEGMENT_ID = "segment_id"
+CONF_IS_GROUP = "is_group"
+
+ADD_ENTITIES_CALLBACKS = "add_entities_callbacks"
+CONNECTION = "connection"
+
+CONF_DOMAIN_DATA = "domain_data"
+CONF_UNIQUE_ID = "unique_id"
+CONF_UNIQUE_DEVICE_ID = "unique_device_id"
+CONF_UNIQUE_ENTITY_ID = "unique_entity_id"
+CONF_PLATFORMS = "platforms"
+
+CONF_HARDWARE_SERIAL = "hardware_serial"
+CONF_SOFTWARE_SERIAL = "software_serial"
+CONF_HARDWARE_TYPE = "hardware_type"
+
 CONF_SK_NUM_TRIES = "sk_num_tries"
 CONF_OUTPUT = "output"
 CONF_DIM_MODE = "dim_mode"

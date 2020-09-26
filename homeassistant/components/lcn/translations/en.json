@@ -1,0 +1,14 @@
+{
+    "config": {
+        "abort": {
+            "not_implemented": "Setting up the LCN integration via the frontend is not yet supported."
+        },
+        "step": {
+            "user": {
+                "data": {},
+                "description": "Set up new PCHK connection.",
+                "title": "Setup PCHK"
+            }
+        }
+    }
+}

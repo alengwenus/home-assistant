@@ -58,7 +58,7 @@ async def validate_connection(host_name, data):
 
 
 @config_entries.HANDLERS.register(DOMAIN)
-class LcnFlowHandler(config_entries.ConfigFlow):
+class LcnFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a LCN config flow."""
 
     VERSION = 1

@@ -31,9 +31,17 @@ async def async_setup(hass, config):
     if DOMAIN not in config:
         return True
 
+    # import json
+
+    # with open("/workspaces/homeassistant/config.json", "w") as fid:
+    #     json.dump(config, fid, indent=2, ensure_ascii=False)
+
     # initialize a config_flow for all LCN configurations read from
     # configuration.yaml
     config_entries_data = import_lcn_config(config[DOMAIN])
+
+    # with open("/workspaces/homeassistant/config_entry_data.json", "w") as fid:
+    #     json.dump(config_entries_data, fid, indent=2, ensure_ascii=False)
 
     for config_entry_data in config_entries_data:
         hass.async_create_task(

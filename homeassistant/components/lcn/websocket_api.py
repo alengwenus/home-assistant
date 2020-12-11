@@ -11,11 +11,13 @@ from homeassistant.components.websocket_api import ActiveConnection
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_DEVICES,
+    CONF_DOMAIN,
     CONF_ENTITIES,
     CONF_ID,
     CONF_IP_ADDRESS,
     CONF_NAME,
     CONF_PORT,
+    CONF_RESOURCE,
     CONF_UNIQUE_ID,
 )
 from homeassistant.core import callback
@@ -45,6 +47,7 @@ from .helpers import (  # async_register_lcn_address_devices,
     get_device_config,
     get_device_connection,
     get_entity_config,
+    get_resource,
 )
 from .schemes import (
     DOMAIN_DATA_BINARY_SENSOR,
@@ -319,13 +322,16 @@ async def websocket_add_entity(
     if entity_id:
         result = False
     else:
+        domain_name = msg[ATTR_DOMAIN]
+        domain_data = msg[ATTR_DOMAIN_DATA]
+        resource = get_resource(domain_name, domain_data).lower()
         entity_config = {
-            CONF_UNIQUE_ID: unique_id,
+            # CONF_UNIQUE_ID: unique_id,
             CONF_UNIQUE_DEVICE_ID: msg[CONF_UNIQUE_DEVICE_ID],
             CONF_NAME: msg[ATTR_NAME],
-            ATTR_RESOURCE: unique_id.split("-", 2)[2],
-            ATTR_DOMAIN: msg[ATTR_DOMAIN],
-            ATTR_DOMAIN_DATA: msg[ATTR_DOMAIN_DATA],
+            ATTR_RESOURCE: resource,
+            ATTR_DOMAIN: domain_name,
+            ATTR_DOMAIN_DATA: domain_data,
         }
 
         # Create new entity and add to corresponding component
@@ -355,7 +361,9 @@ async def websocket_add_entity(
     {
         vol.Required(TYPE): "lcn/entity/delete",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required(CONF_UNIQUE_ID): cv.string,
+        vol.Required(CONF_UNIQUE_DEVICE_ID): cv.string,
+        vol.Required(CONF_DOMAIN): cv.string,
+        vol.Required(CONF_RESOURCE): cv.string,
     }
 )
 async def websocket_delete_entity(
@@ -367,7 +375,13 @@ async def websocket_delete_entity(
         return
 
     device_registry = await dr.async_get_registry(hass)
-    delete_entity(config_entry, device_registry, msg[CONF_UNIQUE_ID])
+    delete_entity(
+        config_entry,
+        device_registry,
+        msg[CONF_UNIQUE_DEVICE_ID],
+        msg[CONF_DOMAIN],
+        msg[CONF_RESOURCE],
+    )
 
     # sort config_entry
     sort_lcn_config_entry(config_entry)
@@ -422,7 +436,13 @@ def delete_device(
     # delete all child devices (and entities)
     for entity_config in config_entry.data[CONF_ENTITIES][:]:
         if entity_config[CONF_UNIQUE_DEVICE_ID] == device_config[CONF_UNIQUE_ID]:
-            delete_entity(config_entry, device_registry, entity_config[CONF_UNIQUE_ID])
+            delete_entity(
+                config_entry,
+                device_registry,
+                entity_config[CONF_UNIQUE_DEVICE_ID],
+                entity_config[CONF_DOMAIN],
+                entity_config[CONF_RESOURCE],
+            )
 
     # now delete module/group device
     # identifiers = {(DOMAIN, unique_id)}
@@ -435,12 +455,16 @@ def delete_device(
 
 
 def delete_entity(
-    config_entry: ConfigEntry, device_registry: dr.DeviceRegistry, unique_id: str
+    config_entry: ConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    unique_device_id: str,
+    domain: str,
+    resource: str,
 ) -> None:
     """Delete an entity from config_entry and device_registry/entity_registry."""
-    entity_config = get_entity_config(unique_id, config_entry)
+    entity_config = get_entity_config(unique_device_id, domain, resource, config_entry)
 
-    identifiers = {(DOMAIN, config_entry.entry_id, unique_id)}
+    identifiers = {(DOMAIN, config_entry.entry_id, unique_device_id, domain, resource)}
     entity_device = device_registry.async_get_device(identifiers, set())
 
     if entity_device:

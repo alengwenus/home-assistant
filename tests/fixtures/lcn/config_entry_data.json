@@ -31,7 +31,6 @@
     ],
     "entities": [
       {
-        "unique_id": "m000007-light-output1",
         "unique_device_id": "m000007",
         "name": "Light_Output1",
         "resource": "output1",
@@ -43,7 +42,6 @@
         }
       },
       {
-        "unique_id": "m000007-light-output2",
         "unique_device_id": "m000007",
         "name": "Light_Output2",
         "resource": "output2",
@@ -55,7 +53,6 @@
         }
       },
       {
-        "unique_id": "m000007-switch-output1",
         "unique_device_id": "m000007",
         "name": "Switch_Output1",
         "resource": "output1",
@@ -65,7 +62,6 @@
         }
       },
       {
-        "unique_id": "m000007-switch-output2",
         "unique_device_id": "m000007",
         "name": "Switch_Output2",
         "resource": "output2",
@@ -75,7 +71,6 @@
         }
       },
       {
-        "unique_id": "m000007-switch-relay1",
         "unique_device_id": "m000007",
         "name": "Switch_Relay1",
         "resource": "relay1",
@@ -85,7 +80,6 @@
         }
       },
       {
-        "unique_id": "m000007-switch-relay2",
         "unique_device_id": "m000007",
         "name": "Switch_Relay2",
         "resource": "relay2",
@@ -95,7 +89,6 @@
         }
       },
       {
-        "unique_id": "g000005-switch-relay1",
         "unique_device_id": "g000005",
         "name": "Switch_Group5",
         "resource": "relay1",
@@ -105,7 +98,6 @@
         }
       },
       {
-        "unique_id": "m000007-cover-motor1",
         "unique_device_id": "m000007",
         "name": "Cover1",
         "resource": "motor1",
@@ -116,7 +108,6 @@
         }
       },
       {
-        "unique_id": "m000007-cover-motor2",
         "unique_device_id": "m000007",
         "name": "Cover2",
         "resource": "motor2",
@@ -127,7 +118,6 @@
         }
       },
       {
-        "unique_id": "m000007-climate-var1.r1varsetpoint",
         "unique_device_id": "m000007",
         "name": "Climate1",
         "resource": "var1.r1varsetpoint",
@@ -142,7 +132,6 @@
         }
       },
       {
-        "unique_id": "m000007-scene-0.0",
         "unique_device_id": "m000007",
         "name": "Romantic",
         "resource": "0.0",
@@ -159,7 +148,6 @@
         }
       },
       {
-        "unique_id": "m000007-binary_sensor-r1varsetpoint",
         "unique_device_id": "m000007",
         "name": "Sensor_LockRegulator1",
         "resource": "r1varsetpoint",
@@ -169,7 +157,6 @@
         }
       },
       {
-        "unique_id": "m000007-binary_sensor-binsensor1",
         "unique_device_id": "m000007",
         "name": "Binary_Sensor1",
         "resource": "binsensor1",
@@ -179,7 +166,6 @@
         }
       },
       {
-        "unique_id": "m000007-binary_sensor-a5",
         "unique_device_id": "m000007",
         "name": "Sensor_KeyLock",
         "resource": "a5",
@@ -189,7 +175,6 @@
         }
       },
       {
-        "unique_id": "m000007-sensor-var1",
         "unique_device_id": "m000007",
         "name": "Sensor_Var1",
         "resource": "var1",
@@ -200,7 +185,6 @@
         }
       },
       {
-        "unique_id": "m000007-sensor-r1varsetpoint",
         "unique_device_id": "m000007",
         "name": "Sensor_Setpoint1",
         "resource": "r1varsetpoint",
@@ -211,7 +195,6 @@
         }
       },
       {
-        "unique_id": "m000007-sensor-led6",
         "unique_device_id": "m000007",
         "name": "Sensor_Led6",
         "resource": "led6",
@@ -222,7 +205,6 @@
         }
       },
       {
-        "unique_id": "m000007-sensor-logicop1",
         "unique_device_id": "m000007",
         "name": "Sensor_LogicOp1",
         "resource": "logicop1",
@@ -236,7 +218,7 @@
   },
   {
     "host": "myhome",
-    "ip_address": "192.168.2.41",
+    "ip_address": "192.168.2.42",
     "port": 4114,
     "username": "lcn",
     "password": "lcn",
@@ -256,7 +238,6 @@
     ],
     "entities": [
       {
-        "unique_id": "m000007-light-relay1",
         "unique_device_id": "m000007",
         "name": "Light_Relay1",
         "resource": "relay1",
@@ -268,7 +249,6 @@
         }
       },
       {
-        "unique_id": "m000007-light-relay2",
         "unique_device_id": "m000007",
         "name": "Light_Relay2",
         "resource": "relay2",

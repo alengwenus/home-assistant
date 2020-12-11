@@ -12,7 +12,7 @@
       },
       {
         "name": "myhome",
-        "host": "192.168.2.41",
+        "host": "192.168.2.42",
         "port": 4114,
         "username": "lcn",
         "password": "lcn",

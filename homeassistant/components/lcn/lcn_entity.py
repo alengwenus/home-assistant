@@ -1,7 +1,7 @@
 """Entity class that represents LCN entity."""
 from typing import Any, Dict
 
-from homeassistant.const import CONF_NAME, CONF_UNIQUE_ID
+from homeassistant.const import CONF_DOMAIN, CONF_NAME, CONF_RESOURCE
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
 
@@ -24,7 +24,7 @@ class LcnEntity(Entity):
     @property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return f"{self.host_id}-{self.config[CONF_UNIQUE_ID]}"
+        return f"{self.host_id}-{self.config[CONF_UNIQUE_DEVICE_ID]}-{self.config[CONF_RESOURCE]}"
 
     @property
     def device_info(self) -> Dict[str, Any]:
@@ -35,7 +35,15 @@ class LcnEntity(Entity):
             hw_type = f"module ({self.unique_id.split('-', 2)[2]})"
 
         return {
-            "identifiers": {(DOMAIN, self.host_id, self.config[CONF_UNIQUE_ID])},
+            "identifiers": {
+                (
+                    DOMAIN,
+                    self.host_id,
+                    self.config[CONF_UNIQUE_DEVICE_ID],
+                    self.config[CONF_DOMAIN],
+                    self.config[CONF_RESOURCE],
+                )
+            },
             "name": self.name,
             "manufacturer": "LCN",
             "model": hw_type,

@@ -10,13 +10,19 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_PASSWORD,
     CONF_PORT,
-    CONF_UNIQUE_ID,
+    CONF_RESOURCE,
     CONF_USERNAME,
 )
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import Entity
 
-from .const import CONF_DIM_MODE, CONF_SK_NUM_TRIES, CONNECTION, DOMAIN
+from .const import (
+    CONF_DIM_MODE,
+    CONF_SK_NUM_TRIES,
+    CONF_UNIQUE_DEVICE_ID,
+    CONNECTION,
+    DOMAIN,
+)
 from .helpers import import_lcn_config
 from .schemas import CONFIG_SCHEMA  # noqa: 401
 from .services import (
@@ -115,9 +121,6 @@ async def async_unload_entry(hass, config_entry):
 
 async def async_setup(hass, config):
     """Set up the LCN component."""
-    if DOMAIN not in config:
-        return True
-
     # register service calls
     for service_name, service in (
         ("output_abs", OutputAbs),
@@ -137,6 +140,9 @@ async def async_setup(hass, config):
         hass.services.async_register(
             DOMAIN, service_name, service(hass).async_call_service, service.schema
         )
+
+    if DOMAIN not in config:
+        return True
 
     # initialize a config_flow for all LCN configurations read from
     # configuration.yaml
@@ -167,7 +173,10 @@ class LcnEntity(Entity):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return f"{self.host_id}-{self.config[CONF_UNIQUE_ID]}"
+        return (
+            f"{self.host_id}-{self.config[CONF_UNIQUE_DEVICE_ID]}"
+            f"-{self.config[CONF_RESOURCE]}"
+        )
 
     @property
     def should_poll(self):

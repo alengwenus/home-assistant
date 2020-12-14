@@ -115,6 +115,18 @@
           "RELAY1"
         ],
         "transition": null
+      },
+      {
+        "name": "Romantic Transition",
+        "address": [[0, 7, false], null],
+        "register": 0,
+        "scene": 1,
+        "outputs": [
+          "OUTPUT1",
+          "OUTPUT2",
+          "RELAY1"
+        ],
+        "transition": 10
       }
     ],
     "binary_sensors": [

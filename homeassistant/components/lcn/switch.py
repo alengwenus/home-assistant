@@ -17,8 +17,6 @@ def create_lcn_switch_entity(hass, entity_config, config_entry):
     device_connection = get_device_connection(
         hass, tuple(entity_config[CONF_ADDRESS]), config_entry
     )
-    print("HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-    print(device_connection)
     if entity_config[CONF_DOMAIN_DATA][CONF_OUTPUT] in OUTPUT_PORTS:
         return LcnOutputSwitch(entity_config, config_entry.entry_id, device_connection)
     # in RELAY_PORTS

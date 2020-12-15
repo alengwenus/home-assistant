@@ -3,7 +3,7 @@ import json
 
 import pypck
 from pypck.connection import PchkConnectionManager
-from pypck.module import ModuleConnection
+from pypck.module import AbstractConnection
 import pytest
 
 from homeassistant.components.lcn.const import (
@@ -18,10 +18,11 @@ from tests.async_mock import AsyncMock
 from tests.common import MockConfigEntry, load_fixture
 
 
-class MockLcnDeviceConnection(ModuleConnection):
+class MockLcnDeviceConnection(AbstractConnection):
     """Fake a LCN device connection."""
 
     activate_status_request_handler = AsyncMock()
+    cancel_status_request_handler = AsyncMock()
     send_command = AsyncMock(return_value=True)
 
 

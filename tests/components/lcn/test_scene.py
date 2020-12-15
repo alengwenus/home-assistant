@@ -38,7 +38,10 @@ async def test_scene_activate(activate_scene, hass, entry):
         {ATTR_ENTITY_ID: "scene.romantic"},
         blocking=True,
     )
+    await hass.async_block_till_done()
+
     state = hass.states.get("scene.romantic")
+    assert state is not None
     assert state.attributes["friendly_name"] == "Romantic"
     activate_scene.assert_awaited_with(
         0, 0, [OutputPort.OUTPUT1, OutputPort.OUTPUT2], [RelayPort.RELAY1], None

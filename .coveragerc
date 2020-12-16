@@ -482,7 +482,6 @@ omit =
     homeassistant/components/lcn/climate.py
     homeassistant/components/lcn/cover.py
     homeassistant/components/lcn/helpers.py
-    homeassistant/components/lcn/light.py
     homeassistant/components/lcn/sensor.py
     homeassistant/components/lcn/services.py
     homeassistant/components/lg_netcast/media_player.py

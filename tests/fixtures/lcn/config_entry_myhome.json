@@ -21,22 +21,22 @@
   "entities": [
     {
       "unique_device_id": "m000007",
-      "name": "Light_Relay1",
-      "resource": "relay1",
+      "name": "Light_Relay3",
+      "resource": "relay3",
       "domain": "light",
       "domain_data": {
-        "output": "RELAY1",
+        "output": "RELAY3",
         "dimmable": false,
         "transition": 0.0
       }
     },
     {
       "unique_device_id": "m000007",
-      "name": "Light_Relay2",
-      "resource": "relay2",
+      "name": "Light_Relay4",
+      "resource": "relay4",
       "domain": "light",
       "domain_data": {
-        "output": "RELAY2",
+        "output": "RELAY4",
         "dimmable": false,
         "transition": 0.0
       }

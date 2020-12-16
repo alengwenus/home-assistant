@@ -32,20 +32,27 @@
         "name": "Light_Output2",
         "address": [[0, 7, false], "pchk"],
         "output": "OUTPUT2",
-        "dimmable": true,
-        "transition": 5000.0
+        "dimmable": false,
+        "transition": 0
       },
       {
         "name": "Light_Relay1",
-        "address": [[0, 7, false], "myhome"],
+        "address": [[0, 7, false], "pchk"],
         "output": "RELAY1",
         "dimmable": false,
         "transition": 0.0
       },
       {
-        "name": "Light_Relay2",
+        "name": "Light_Relay3",
         "address": [[0, 7, false], "myhome"],
-        "output": "RELAY2",
+        "output": "RELAY3",
+        "dimmable": false,
+        "transition": 0.0
+      },
+      {
+        "name": "Light_Relay4",
+        "address": [[0, 7, false], "myhome"],
+        "output": "RELAY4",
         "dimmable": false,
         "transition": 0.0
       }

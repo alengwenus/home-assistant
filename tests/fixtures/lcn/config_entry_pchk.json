@@ -47,8 +47,19 @@
       "domain": "light",
       "domain_data": {
         "output": "OUTPUT2",
-        "dimmable": true,
-        "transition": 5000.0
+        "dimmable": false,
+        "transition": 0
+      }
+    },
+    {
+      "unique_device_id": "m000007",
+      "name": "Light_Relay1",
+      "resource": "relay1",
+      "domain": "light",
+      "domain_data": {
+        "output": "RELAY1",
+        "dimmable": false,
+        "transition": 0.0
       }
     },
     {

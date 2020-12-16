@@ -3,7 +3,8 @@ import json
 
 import pypck
 from pypck.connection import PchkConnectionManager
-from pypck.module import AbstractConnection
+import pypck.module
+from pypck.module import GroupConnection, ModuleConnection
 import pytest
 
 from homeassistant.components.lcn.const import (
@@ -14,15 +15,21 @@ from homeassistant.components.lcn.const import (
 )
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 
-from tests.async_mock import AsyncMock
+from tests.async_mock import AsyncMock, patch
 from tests.common import MockConfigEntry, load_fixture
 
 
-class MockLcnDeviceConnection(AbstractConnection):
-    """Fake a LCN device connection."""
+class MockModuleConnection(ModuleConnection):
+    """Fake a LCN module connection."""
 
     activate_status_request_handler = AsyncMock()
     cancel_status_request_handler = AsyncMock()
+    send_command = AsyncMock(return_value=True)
+
+
+class MockGroupConnection(GroupConnection):
+    """Fake a LCN group connection."""
+
     send_command = AsyncMock(return_value=True)
 
 
@@ -39,9 +46,12 @@ class MockPchkConnectionManager(PchkConnectionManager):
         """Mock closing a connection to PCHK."""
         pass
 
+    @patch.object(pypck.connection, "ModuleConnection", MockModuleConnection)
+    @patch.object(pypck.connection, "GroupConnection", MockGroupConnection)
     def get_address_conn(self, addr):
         """Get LCN address connection."""
-        return MockLcnDeviceConnection(self, addr)
+        return super().get_address_conn(addr, request_serials=False)
+        # return MockLcnDeviceConnection(self, addr)
 
     send_command = AsyncMock()
 
@@ -88,4 +98,4 @@ async def setup_platform(hass, entry, platform):
     hass.data[DOMAIN].setdefault(entry.entry_id, {CONNECTION: lcn_connection})
     await hass.config_entries.async_forward_entry_setup(entry, platform)
     await hass.async_block_till_done()
-    return entry
+    # return entry

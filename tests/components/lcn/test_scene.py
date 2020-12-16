@@ -4,7 +4,7 @@ from pypck.lcn_defs import OutputPort, RelayPort
 from homeassistant.components.scene import DOMAIN as DOMAIN_SCENE
 from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_ON
 
-from .conftest import MockLcnDeviceConnection, setup_platform
+from .conftest import MockModuleConnection, setup_platform
 
 from tests.async_mock import patch
 
@@ -27,7 +27,7 @@ async def test_entity_attributes(hass, entry):
     assert entity_transition.original_name == "Romantic Transition"
 
 
-@patch.object(MockLcnDeviceConnection, "activate_scene")
+@patch.object(MockModuleConnection, "activate_scene")
 async def test_scene_activate(activate_scene, hass, entry):
     """Test the scene is activated."""
     await setup_platform(hass, entry, DOMAIN_SCENE)

@@ -113,10 +113,11 @@ async def test_connection_name_update(hass, entry):
     assert hass.data[DOMAIN][entry.entry_id][CONNECTION].connection_id == "foobar"
 
 
-# assert False
+@patch("pypck.connection.PchkConnectionManager", MockPchkConnectionManager)
+async def test_unload_entry(hass, entry):
+    """Test being able to unload an entry."""
+    await init_integration(hass, entry)
+    assert hass.data[DOMAIN]
 
-# state = hass.states.get("light.light_output1")
-# assert state == "Hallo"
-# assert state is not None
-# assert state.state != STATE_UNAVAILABLE
-# assert state.state == "sunny"
+    assert await lcn.async_unload_entry(hass, entry)
+    assert entry.entry_id not in hass.data[DOMAIN]

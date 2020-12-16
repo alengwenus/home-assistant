@@ -39,6 +39,25 @@ async def test_async_setup_entry(hass, entry):
 
 
 @patch("pypck.connection.PchkConnectionManager", MockPchkConnectionManager)
+async def test_async_setup_multiple_entries(hass, entry, entry2):
+    """Test a successful setup and unload of multiple entries."""
+    for config_entry in (entry, entry2):
+        await init_integration(hass, config_entry)
+        assert config_entry.state == ENTRY_STATE_LOADED
+        await hass.async_block_till_done()
+
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 2
+
+    for config_entry in (entry, entry2):
+        assert await hass.config_entries.async_unload(config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        assert config_entry.state == ENTRY_STATE_NOT_LOADED
+
+    assert not hass.data.get(DOMAIN)
+
+
+@patch("pypck.connection.PchkConnectionManager", MockPchkConnectionManager)
 async def test_async_setup_entry_update(hass, entry):
     """Test a successful setup entry if entry with same id already exists."""
     # setup first entry
@@ -111,13 +130,3 @@ async def test_connection_name_update(hass, entry):
 
     assert entry.title == "foobar"
     assert hass.data[DOMAIN][entry.entry_id][CONNECTION].connection_id == "foobar"
-
-
-@patch("pypck.connection.PchkConnectionManager", MockPchkConnectionManager)
-async def test_unload_entry(hass, entry):
-    """Test being able to unload an entry."""
-    await init_integration(hass, entry)
-    assert hass.data[DOMAIN]
-
-    assert await lcn.async_unload_entry(hass, entry)
-    assert entry.entry_id not in hass.data[DOMAIN]

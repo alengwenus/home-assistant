@@ -13,7 +13,13 @@ from homeassistant.components.lcn.const import (
     CONNECTION,
     DOMAIN,
 )
-from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_IP_ADDRESS,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_USERNAME,
+)
 
 from tests.async_mock import AsyncMock, patch
 from tests.common import MockConfigEntry, load_fixture
@@ -56,22 +62,37 @@ class MockPchkConnectionManager(PchkConnectionManager):
     send_command = AsyncMock()
 
 
-@pytest.fixture(name="entry")
-def create_config_entry() -> MockConfigEntry:
-    """Set up config entry with configuration data."""
-    data = json.loads(load_fixture("lcn/config_entry_data.json"))
+def create_config_entry(name):
+    """Set up config entries with configuration data."""
+    fixture_filename = f"lcn/config_entry_{name}.json"
+    entry_data = json.loads(load_fixture(fixture_filename))
     options = {}
 
-    title = "pchk"
-    unique_id = "0123456789abcdef0123456789abcdef"
-
+    title = entry_data[CONF_HOST]
+    unique_id = fixture_filename
     entry = MockConfigEntry(
-        domain=DOMAIN, title=title, unique_id=unique_id, data=data[0], options=options
+        domain=DOMAIN,
+        title=title,
+        unique_id=unique_id,
+        data=entry_data,
+        options=options,
     )
     return entry
 
 
-async def init_integration(hass, entry) -> MockConfigEntry:
+@pytest.fixture(name="entry")
+def create_config_entry_pchk():
+    """Return one specific config entry."""
+    return create_config_entry("pchk")
+
+
+@pytest.fixture(name="entry2")
+def create_config_entry_myhome():
+    """Return one specific config entry."""
+    return create_config_entry("myhome")
+
+
+async def init_integration(hass, entry):
     """Set up the LCN integration in Home Assistant."""
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)

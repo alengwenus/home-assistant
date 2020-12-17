@@ -480,7 +480,6 @@ omit =
     homeassistant/components/launch_library/sensor.py
     homeassistant/components/lcn/binary_sensor.py
     homeassistant/components/lcn/helpers.py
-    homeassistant/components/lcn/sensor.py
     homeassistant/components/lcn/services.py
     homeassistant/components/lg_netcast/media_player.py
     homeassistant/components/lg_soundbar/media_player.py

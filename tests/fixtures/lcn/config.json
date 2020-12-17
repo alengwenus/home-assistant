@@ -86,15 +86,15 @@
     ],
     "covers": [
       {
-        "name": "Cover1",
+        "name": "Cover_Ouputs",
         "address": [[0, 7, false], null],
-        "motor": "MOTOR1",
+        "motor": "OUTPUTS",
         "reverse_time": "RT1200"
       },
       {
-        "name": "Cover2",
+        "name": "Cover_Relays",
         "address": [[0, 7, false], null],
-        "motor": "MOTOR2",
+        "motor": "MOTOR1",
         "reverse_time": "RT1200"
       }
     ],

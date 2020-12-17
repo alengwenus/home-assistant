@@ -479,7 +479,6 @@ omit =
     homeassistant/components/launch_library/const.py
     homeassistant/components/launch_library/sensor.py
     homeassistant/components/lcn/binary_sensor.py
-    homeassistant/components/lcn/cover.py
     homeassistant/components/lcn/helpers.py
     homeassistant/components/lcn/sensor.py
     homeassistant/components/lcn/services.py

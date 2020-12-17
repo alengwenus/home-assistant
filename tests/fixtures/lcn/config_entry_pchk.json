@@ -109,21 +109,21 @@
     },
     {
       "unique_device_id": "m000007",
-      "name": "Cover1",
-      "resource": "motor1",
+      "name": "Cover_Outputs",
+      "resource": "outputs",
       "domain": "cover",
       "domain_data": {
-        "motor": "MOTOR1",
+        "motor": "OUTPUTS",
         "reverse_time": "RT1200"
       }
     },
     {
       "unique_device_id": "m000007",
-      "name": "Cover2",
-      "resource": "motor2",
+      "name": "Cover_Relays",
+      "resource": "motor1",
       "domain": "cover",
       "domain_data": {
-        "motor": "MOTOR2",
+        "motor": "MOTOR1",
         "reverse_time": "RT1200"
       }
     },

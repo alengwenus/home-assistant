@@ -56,6 +56,18 @@ async def test_entity_state(hass, entry):
     assert state.attributes[ATTR_TEMPERATURE] is None
 
 
+async def test_entity_attributes(hass, entry):
+    """Test the attributes of an entity."""
+    entity_registry = await hass.helpers.entity_registry.async_get_registry()
+    await setup_platform(hass, entry, DOMAIN_CLIMATE)
+
+    entity = entity_registry.async_get("climate.climate1")
+
+    assert entity
+    assert entity.unique_id == f"{entry.entry_id}-m000007-var1.r1varsetpoint"
+    assert entity.original_name == "Climate1"
+
+
 @patch.object(MockModuleConnection, "lock_regulator")
 async def test_set_hvac_mode_heat(lock_regulator, hass, entry):
     """Test the hvac mode is set to heat."""

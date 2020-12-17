@@ -16,6 +16,8 @@ from homeassistant.const import (
     ATTR_SUPPORTED_FEATURES,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
+    STATE_OFF,
+    STATE_ON,
 )
 
 from .conftest import MockModuleConnection, setup_platform
@@ -91,7 +93,7 @@ async def test_output_turn_on(dim_output, hass, entry):
 
     state = hass.states.get("light.light_output1")
     assert state is not None
-    assert state.state != "on"
+    assert state.state != STATE_ON
 
     # command success
     dim_output.reset_mock(return_value=True)
@@ -108,7 +110,7 @@ async def test_output_turn_on(dim_output, hass, entry):
 
     state = hass.states.get("light.light_output1")
     assert state is not None
-    assert state.state == "on"
+    assert state.state == STATE_ON
 
 
 @patch.object(MockModuleConnection, "dim_output")
@@ -132,7 +134,7 @@ async def test_output_turn_on_with_attributes(dim_output, hass, entry):
 
     state = hass.states.get("light.light_output1")
     assert state is not None
-    assert state.state == "on"
+    assert state.state == STATE_ON
 
 
 @patch.object(MockModuleConnection, "dim_output")
@@ -141,7 +143,7 @@ async def test_output_turn_off(dim_output, hass, entry):
     await setup_platform(hass, entry, DOMAIN_LIGHT)
 
     state = hass.states.get("light.light_output1")
-    state.state = "on"
+    state.state = STATE_ON
 
     # command failed
     dim_output.return_value = False
@@ -157,7 +159,7 @@ async def test_output_turn_off(dim_output, hass, entry):
 
     state = hass.states.get("light.light_output1")
     assert state is not None
-    assert state.state != "off"
+    assert state.state != STATE_OFF
 
     # command success
     dim_output.reset_mock(return_value=True)
@@ -174,7 +176,7 @@ async def test_output_turn_off(dim_output, hass, entry):
 
     state = hass.states.get("light.light_output1")
     assert state is not None
-    assert state.state == "off"
+    assert state.state == STATE_OFF
 
 
 @patch.object(MockModuleConnection, "dim_output")
@@ -184,7 +186,7 @@ async def test_output_turn_off_with_attributes(dim_output, hass, entry):
     dim_output.return_value = True
 
     state = hass.states.get("light.light_output1")
-    state.state = "on"
+    state.state = STATE_ON
 
     await hass.services.async_call(
         DOMAIN_LIGHT,
@@ -200,7 +202,7 @@ async def test_output_turn_off_with_attributes(dim_output, hass, entry):
 
     state = hass.states.get("light.light_output1")
     assert state is not None
-    assert state.state == "off"
+    assert state.state == STATE_OFF
 
 
 @patch.object(MockModuleConnection, "control_relays")
@@ -225,7 +227,7 @@ async def test_relay_turn_on(control_relays, hass, entry):
 
     state = hass.states.get("light.light_relay1")
     assert state is not None
-    assert state.state != "on"
+    assert state.state != STATE_ON
 
     # command success
     control_relays.reset_mock(return_value=True)
@@ -242,7 +244,7 @@ async def test_relay_turn_on(control_relays, hass, entry):
 
     state = hass.states.get("light.light_relay1")
     assert state is not None
-    assert state.state == "on"
+    assert state.state == STATE_ON
 
 
 @patch.object(MockModuleConnection, "control_relays")
@@ -254,7 +256,7 @@ async def test_relay_turn_off(control_relays, hass, entry):
     states[0] = RelayStateModifier.OFF
 
     state = hass.states.get("light.light_relay1")
-    state.state = "on"
+    state.state = STATE_ON
 
     # command failed
     control_relays.return_value = False
@@ -270,7 +272,7 @@ async def test_relay_turn_off(control_relays, hass, entry):
 
     state = hass.states.get("light.light_relay1")
     assert state is not None
-    assert state.state != "off"
+    assert state.state != STATE_OFF
 
     # command success
     control_relays.reset_mock(return_value=True)
@@ -287,7 +289,7 @@ async def test_relay_turn_off(control_relays, hass, entry):
 
     state = hass.states.get("light.light_relay1")
     assert state is not None
-    assert state.state == "off"
+    assert state.state == STATE_OFF
 
 
 async def test_pushed_output_status_change(hass, entry):
@@ -303,7 +305,7 @@ async def test_pushed_output_status_change(hass, entry):
 
     state = hass.states.get("light.light_output1")
     assert state is not None
-    assert state.state == "on"
+    assert state.state == STATE_ON
     assert state.attributes[ATTR_BRIGHTNESS] == 127
 
     # push status "off"
@@ -313,7 +315,7 @@ async def test_pushed_output_status_change(hass, entry):
 
     state = hass.states.get("light.light_output1")
     assert state is not None
-    assert state.state == "off"
+    assert state.state == STATE_OFF
 
 
 async def test_pushed_relay_status_change(hass, entry):
@@ -331,7 +333,7 @@ async def test_pushed_relay_status_change(hass, entry):
 
     state = hass.states.get("light.light_relay1")
     assert state is not None
-    assert state.state == "on"
+    assert state.state == STATE_ON
 
     # push status "off"
     states[0] = False
@@ -341,7 +343,7 @@ async def test_pushed_relay_status_change(hass, entry):
 
     state = hass.states.get("light.light_relay1")
     assert state is not None
-    assert state.state == "off"
+    assert state.state == STATE_OFF
 
 
 async def test_unload_config_entry(hass, entry):

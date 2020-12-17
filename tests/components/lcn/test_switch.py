@@ -5,7 +5,13 @@ from pypck.lcn_defs import OutputPort, RelayPort, RelayStateModifier
 
 from homeassistant.components.lcn.helpers import get_device_connection
 from homeassistant.components.switch import DOMAIN as DOMAIN_SWITCH
-from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_OFF, SERVICE_TURN_ON
+from homeassistant.const import (
+    ATTR_ENTITY_ID,
+    SERVICE_TURN_OFF,
+    SERVICE_TURN_ON,
+    STATE_OFF,
+    STATE_ON,
+)
 
 from .conftest import MockModuleConnection, setup_platform
 
@@ -65,7 +71,7 @@ async def test_output_turn_on(dim_output, hass, entry):
 
     state = hass.states.get("switch.switch_output1")
     assert state is not None
-    assert state.state != "on"
+    assert state.state != STATE_ON
 
     # command success
     dim_output.reset_mock(return_value=True)
@@ -82,7 +88,7 @@ async def test_output_turn_on(dim_output, hass, entry):
 
     state = hass.states.get("switch.switch_output1")
     assert state is not None
-    assert state.state == "on"
+    assert state.state == STATE_ON
 
 
 @patch.object(MockModuleConnection, "dim_output")
@@ -91,7 +97,7 @@ async def test_output_turn_off(dim_output, hass, entry):
     await setup_platform(hass, entry, DOMAIN_SWITCH)
 
     state = hass.states.get("switch.switch_output1")
-    state.state = "on"
+    state.state = STATE_ON
 
     # command failed
     dim_output.return_value = False
@@ -107,7 +113,7 @@ async def test_output_turn_off(dim_output, hass, entry):
 
     state = hass.states.get("switch.switch_output1")
     assert state is not None
-    assert state.state != "off"
+    assert state.state != STATE_OFF
 
     # command success
     dim_output.reset_mock(return_value=True)
@@ -124,7 +130,7 @@ async def test_output_turn_off(dim_output, hass, entry):
 
     state = hass.states.get("switch.switch_output1")
     assert state is not None
-    assert state.state == "off"
+    assert state.state == STATE_OFF
 
 
 @patch.object(MockModuleConnection, "control_relays")
@@ -149,7 +155,7 @@ async def test_relay_turn_on(control_relays, hass, entry):
 
     state = hass.states.get("switch.switch_relay1")
     assert state is not None
-    assert state.state != "on"
+    assert state.state != STATE_ON
 
     # command success
     control_relays.reset_mock(return_value=True)
@@ -166,7 +172,7 @@ async def test_relay_turn_on(control_relays, hass, entry):
 
     state = hass.states.get("switch.switch_relay1")
     assert state is not None
-    assert state.state == "on"
+    assert state.state == STATE_ON
 
 
 @patch.object(MockModuleConnection, "control_relays")
@@ -178,7 +184,7 @@ async def test_relay_turn_off(control_relays, hass, entry):
     states[0] = RelayStateModifier.OFF
 
     state = hass.states.get("switch.switch_relay1")
-    state.state = "on"
+    state.state = STATE_ON
 
     # command failed
     control_relays.return_value = False
@@ -194,7 +200,7 @@ async def test_relay_turn_off(control_relays, hass, entry):
 
     state = hass.states.get("switch.switch_relay1")
     assert state is not None
-    assert state.state != "off"
+    assert state.state != STATE_OFF
 
     # command success
     control_relays.reset_mock(return_value=True)
@@ -211,7 +217,7 @@ async def test_relay_turn_off(control_relays, hass, entry):
 
     state = hass.states.get("switch.switch_relay1")
     assert state is not None
-    assert state.state == "off"
+    assert state.state == STATE_OFF
 
 
 async def test_pushed_output_status_change(hass, entry):
@@ -227,7 +233,7 @@ async def test_pushed_output_status_change(hass, entry):
 
     state = hass.states.get("switch.switch_output1")
     assert state is not None
-    assert state.state == "on"
+    assert state.state == STATE_ON
 
     # push status "off"
     input = ModStatusOutput(address, 0, 0)
@@ -236,7 +242,7 @@ async def test_pushed_output_status_change(hass, entry):
 
     state = hass.states.get("switch.switch_output1")
     assert state is not None
-    assert state.state == "off"
+    assert state.state == STATE_OFF
 
 
 async def test_pushed_relay_status_change(hass, entry):
@@ -254,7 +260,7 @@ async def test_pushed_relay_status_change(hass, entry):
 
     state = hass.states.get("switch.switch_relay1")
     assert state is not None
-    assert state.state == "on"
+    assert state.state == STATE_ON
 
     # push status "off"
     states[0] = False
@@ -264,7 +270,7 @@ async def test_pushed_relay_status_change(hass, entry):
 
     state = hass.states.get("switch.switch_relay1")
     assert state is not None
-    assert state.state == "off"
+    assert state.state == STATE_OFF
 
 
 async def test_unload_config_entry(hass, entry):

@@ -20,6 +20,7 @@ from homeassistant.const import (
     CONF_PORT,
     CONF_USERNAME,
 )
+from homeassistant.setup import async_setup_component
 
 from tests.async_mock import AsyncMock, patch
 from tests.common import MockConfigEntry, load_fixture
@@ -57,7 +58,6 @@ class MockPchkConnectionManager(PchkConnectionManager):
     def get_address_conn(self, addr):
         """Get LCN address connection."""
         return super().get_address_conn(addr, request_serials=False)
-        # return MockLcnDeviceConnection(self, addr)
 
     send_command = AsyncMock()
 
@@ -119,4 +119,12 @@ async def setup_platform(hass, entry, platform):
     hass.data[DOMAIN].setdefault(entry.entry_id, {CONNECTION: lcn_connection})
     await hass.config_entries.async_forward_entry_setup(entry, platform)
     await hass.async_block_till_done()
-    # return entry
+
+
+async def setup_component(hass):
+    """Set up the LCN component."""
+    fixture_filename = "lcn/config.json"
+    config_data = json.loads(load_fixture(fixture_filename))
+
+    await async_setup_component(hass, DOMAIN, config_data)
+    await hass.async_block_till_done()

@@ -1,6 +1,4 @@
 """Test init of LCN integration."""
-import json
-
 from pypck.connection import (
     PchkAuthenticationError,
     PchkConnectionManager,
@@ -8,7 +6,6 @@ from pypck.connection import (
 )
 
 from homeassistant import config_entries
-from homeassistant.components import lcn
 from homeassistant.components.lcn.const import CONNECTION, DOMAIN
 from homeassistant.config_entries import (
     ENTRY_STATE_LOADED,
@@ -18,10 +15,9 @@ from homeassistant.config_entries import (
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 
-from .conftest import MockPchkConnectionManager, init_integration
+from .conftest import MockPchkConnectionManager, init_integration, setup_component
 
 from tests.async_mock import patch
-from tests.common import load_fixture
 
 
 @patch("pypck.connection.PchkConnectionManager", MockPchkConnectionManager)
@@ -107,12 +103,10 @@ async def test_async_setup_from_configuration_yaml(hass):
     """Test a successful setup using data from configuration.yaml."""
     await async_setup_component(hass, "persistent_notification", {})
 
-    config = json.loads(load_fixture("lcn/config.json"))
     with patch(
         "homeassistant.components.lcn.async_setup_entry", return_value=True
     ) as async_setup_entry:
-        await lcn.async_setup(hass, config)
-        await hass.async_block_till_done()
+        await setup_component(hass)
 
         assert async_setup_entry.await_count == 2
 

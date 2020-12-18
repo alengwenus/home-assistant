@@ -8,11 +8,8 @@
   "dim_mode": "STEPS200",
   "devices": [
     {
-      "unique_id": "m000007",
+      "address": [0, 7, false],
       "name": "",
-      "segment_id": 0,
-      "address_id": 7,
-      "is_group": false,
       "hardware_serial": -1,
       "software_serial": -1,
       "hardware_type": -1
@@ -20,7 +17,7 @@
   ],
   "entities": [
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Light_Relay3",
       "resource": "relay3",
       "domain": "light",
@@ -31,7 +28,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Light_Relay4",
       "resource": "relay4",
       "domain": "light",

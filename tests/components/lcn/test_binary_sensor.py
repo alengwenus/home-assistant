@@ -16,7 +16,7 @@ from tests.async_mock import call, patch
 async def test_setup_lcn_sensor(activate_status_request_handler, hass, entry):
     """Test the setup of binary sensor."""
     await setup_platform(hass, entry, DOMAIN_BINARY_SENSOR)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     assert device_connection
     calls = [call(Var.R1VARSETPOINT), call(BinSensorPort.BINSENSOR1), call(Key.A5)]
     activate_status_request_handler.assert_has_awaits(calls, any_order=True)
@@ -61,7 +61,7 @@ async def test_entity_attributes(hass, entry):
 async def test_pushed_lock_setpoint_status_change(hass, entry):
     """Test the lock setpoint sensor changes its state on status received."""
     await setup_platform(hass, entry, DOMAIN_BINARY_SENSOR)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
 
     # push status lock setpoint
@@ -86,7 +86,7 @@ async def test_pushed_lock_setpoint_status_change(hass, entry):
 async def test_pushed_binsensor_status_change(hass, entry):
     """Test the binary port sensor changes its state on status received."""
     await setup_platform(hass, entry, DOMAIN_BINARY_SENSOR)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
     states = [False] * 8
 
@@ -113,7 +113,7 @@ async def test_pushed_binsensor_status_change(hass, entry):
 async def test_pushed_keylock_status_change(hass, entry):
     """Test the keylock sensor changes its state on status received."""
     await setup_platform(hass, entry, DOMAIN_BINARY_SENSOR)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
     states = [[False] * 8 for i in range(4)]
 

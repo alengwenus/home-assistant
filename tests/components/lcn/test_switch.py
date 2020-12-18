@@ -22,7 +22,7 @@ from tests.async_mock import call, patch
 async def test_setup_lcn_switch(activate_status_request_handler, hass, entry):
     """Test the setup of switch."""
     await setup_platform(hass, entry, DOMAIN_SWITCH)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     assert device_connection
     calls = [
         call(OutputPort.OUTPUT1),
@@ -223,7 +223,7 @@ async def test_relay_turn_off(control_relays, hass, entry):
 async def test_pushed_output_status_change(hass, entry):
     """Test the output switch changes its state on status received."""
     await setup_platform(hass, entry, DOMAIN_SWITCH)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
 
     # push status "on"
@@ -248,7 +248,7 @@ async def test_pushed_output_status_change(hass, entry):
 async def test_pushed_relay_status_change(hass, entry):
     """Test the relay switch changes its state on status received."""
     await setup_platform(hass, entry, DOMAIN_SWITCH)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
     states = [False] * 8
 

@@ -8,21 +8,15 @@
   "dim_mode": "STEPS200",
   "devices": [
     {
-      "unique_id": "m000007",
+      "address": [0, 7, false],
       "name": "",
-      "segment_id": 0,
-      "address_id": 7,
-      "is_group": false,
       "hardware_serial": -1,
       "software_serial": -1,
       "hardware_type": -1
     },
     {
-      "unique_id": "g000005",
+      "address": [0, 5, true],
       "name": "",
-      "segment_id": 0,
-      "address_id": 5,
-      "is_group": true,
       "hardware_serial": -1,
       "software_serial": -1,
       "hardware_type": -1
@@ -30,7 +24,7 @@
   ],
   "entities": [
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Light_Output1",
       "resource": "output1",
       "domain": "light",
@@ -41,7 +35,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Light_Output2",
       "resource": "output2",
       "domain": "light",
@@ -52,7 +46,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Light_Relay1",
       "resource": "relay1",
       "domain": "light",
@@ -63,7 +57,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Switch_Output1",
       "resource": "output1",
       "domain": "switch",
@@ -72,7 +66,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Switch_Output2",
       "resource": "output2",
       "domain": "switch",
@@ -81,7 +75,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Switch_Relay1",
       "resource": "relay1",
       "domain": "switch",
@@ -90,7 +84,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Switch_Relay2",
       "resource": "relay2",
       "domain": "switch",
@@ -99,7 +93,7 @@
       }
     },
     {
-      "unique_device_id": "g000005",
+      "address": [0, 5, true],
       "name": "Switch_Group5",
       "resource": "relay1",
       "domain": "switch",
@@ -108,7 +102,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Cover_Outputs",
       "resource": "outputs",
       "domain": "cover",
@@ -118,7 +112,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Cover_Relays",
       "resource": "motor1",
       "domain": "cover",
@@ -128,7 +122,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Climate1",
       "resource": "var1.r1varsetpoint",
       "domain": "climate",
@@ -142,7 +136,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Romantic",
       "resource": "0.0",
       "domain": "scene",
@@ -158,7 +152,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Romantic Transition",
       "resource": "0.1",
       "domain": "scene",
@@ -174,7 +168,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Sensor_LockRegulator1",
       "resource": "r1varsetpoint",
       "domain": "binary_sensor",
@@ -183,7 +177,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Binary_Sensor1",
       "resource": "binsensor1",
       "domain": "binary_sensor",
@@ -192,7 +186,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Sensor_KeyLock",
       "resource": "a5",
       "domain": "binary_sensor",
@@ -201,7 +195,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Sensor_Var1",
       "resource": "var1",
       "domain": "sensor",
@@ -211,7 +205,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Sensor_Setpoint1",
       "resource": "r1varsetpoint",
       "domain": "sensor",
@@ -221,7 +215,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Sensor_Led6",
       "resource": "led6",
       "domain": "sensor",
@@ -231,7 +225,7 @@
       }
     },
     {
-      "unique_device_id": "m000007",
+      "address": [0, 7, false],
       "name": "Sensor_LogicOp1",
       "resource": "logicop1",
       "domain": "sensor",

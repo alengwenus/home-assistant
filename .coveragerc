@@ -478,7 +478,6 @@ omit =
     homeassistant/components/lastfm/sensor.py
     homeassistant/components/launch_library/const.py
     homeassistant/components/launch_library/sensor.py
-    homeassistant/components/lcn/helpers.py
     homeassistant/components/lg_netcast/media_player.py
     homeassistant/components/lg_soundbar/media_player.py
     homeassistant/components/life360/*

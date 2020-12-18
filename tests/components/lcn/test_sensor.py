@@ -16,7 +16,7 @@ from tests.async_mock import call, patch
 async def test_setup_lcn_sensor(activate_status_request_handler, hass, entry):
     """Test the setup of sensor."""
     await setup_platform(hass, entry, DOMAIN_SENSOR)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     assert device_connection
     calls = [
         call(Var.VAR1),
@@ -76,7 +76,7 @@ async def test_entity_attributes(hass, entry):
 async def test_pushed_variable_status_change(hass, entry):
     """Test the variable sensor changes its state on status received."""
     await setup_platform(hass, entry, DOMAIN_SENSOR)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
 
     # push status variable
@@ -101,7 +101,7 @@ async def test_pushed_variable_status_change(hass, entry):
 async def test_pushed_ledlogicop_status_change(hass, entry):
     """Test the led and logicop sensor changes its state on status received."""
     await setup_platform(hass, entry, DOMAIN_SENSOR)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
 
     states_led = [LedStatus.OFF] * 12

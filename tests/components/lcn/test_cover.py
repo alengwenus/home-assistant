@@ -25,7 +25,7 @@ from tests.async_mock import call, patch
 async def test_setup_lcn_cover(activate_status_request_handler, hass, entry):
     """Test the setup of cover."""
     await setup_platform(hass, entry, DOMAIN_COVER)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     assert device_connection
     calls = [
         call(OutputPort.OUTPUTUP),
@@ -323,7 +323,7 @@ async def test_relays_stop(control_motors_relays, hass, entry):
 async def test_pushed_outputs_status_change(hass, entry):
     """Test the outputs cover changes its state on status received."""
     await setup_platform(hass, entry, DOMAIN_COVER)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
 
     state = hass.states.get("cover.cover_outputs")
@@ -360,7 +360,7 @@ async def test_pushed_outputs_status_change(hass, entry):
 async def test_pushed_relays_status_change(hass, entry):
     """Test the relays cover changes its state on status received."""
     await setup_platform(hass, entry, DOMAIN_COVER)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
     states = [False] * 8
 

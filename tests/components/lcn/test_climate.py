@@ -35,7 +35,7 @@ from tests.async_mock import call, patch
 async def test_setup_lcn_climate(activate_status_request_handler, hass, entry):
     """Test the setup of climate."""
     await setup_platform(hass, entry, DOMAIN_CLIMATE)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     assert device_connection
     calls = [call(Var.VAR1), call(Var.R1VARSETPOINT)]
     activate_status_request_handler.assert_has_awaits(calls, any_order=True)
@@ -214,7 +214,7 @@ async def test_set_temperature(var_abs, hass, entry):
 async def test_pushed_current_temperature_status_change(hass, entry):
     """Test the climate changes its current temperature on status received."""
     await setup_platform(hass, entry, DOMAIN_CLIMATE)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
 
     temperature = VarValue.from_celsius(25.5)
@@ -233,7 +233,7 @@ async def test_pushed_current_temperature_status_change(hass, entry):
 async def test_pushed_setpoint_status_change(hass, entry):
     """Test the climate changes its setpoint on status received."""
     await setup_platform(hass, entry, DOMAIN_CLIMATE)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
 
     temperature = VarValue.from_celsius(25.5)
@@ -252,7 +252,7 @@ async def test_pushed_setpoint_status_change(hass, entry):
 async def test_pushed_lock_status_change(hass, entry):
     """Test the climate changes its setpoint on status received."""
     await setup_platform(hass, entry, DOMAIN_CLIMATE)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
     address = LcnAddr(0, 7, False)
 
     temperature = VarValue(0x8000)
@@ -271,7 +271,7 @@ async def test_pushed_lock_status_change(hass, entry):
 async def test_pushed_wrong_input(hass, entry):
     """Test the climate handles wrong input correctly."""
     await setup_platform(hass, entry, DOMAIN_CLIMATE)
-    device_connection = get_device_connection(hass, "m000007", entry)
+    device_connection = get_device_connection(hass, (0, 7, False), entry)
 
     await device_connection.async_process_input(Unknown("input"))
     await hass.async_block_till_done()

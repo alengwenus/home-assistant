@@ -29,6 +29,7 @@ from tests.common import MockConfigEntry, load_fixture
 class MockModuleConnection(ModuleConnection):
     """Fake a LCN module connection."""
 
+    status_request_handler = AsyncMock()
     activate_status_request_handler = AsyncMock()
     cancel_status_request_handler = AsyncMock()
     send_command = AsyncMock(return_value=True)

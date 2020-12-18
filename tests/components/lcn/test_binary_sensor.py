@@ -115,7 +115,7 @@ async def test_pushed_keylock_status_change(hass, entry):
     await setup_platform(hass, entry, DOMAIN_BINARY_SENSOR)
     device_connection = get_device_connection(hass, "m000007", entry)
     address = LcnAddr(0, 7, False)
-    states = [[False] * 8, [False] * 8, [False] * 8, [False] * 8]
+    states = [[False] * 8 for i in range(4)]
 
     # push status keylock "off"
     input = ModStatusKeyLocks(address, states)

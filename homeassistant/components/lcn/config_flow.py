@@ -24,6 +24,21 @@ from .const import CONF_DIM_MODE, CONF_SK_NUM_TRIES, DIM_MODES, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+def get_config_entry(
+    hass: HomeAssistantType, data: ConfigType
+) -> Optional[config_entries.ConfigEntry]:
+    """Check config entries for already configured entries based on the ip address/port."""
+    return next(
+        (
+            entry
+            for entry in hass.config_entries.async_entries(DOMAIN)
+            if entry.data[CONF_IP_ADDRESS] == data[CONF_IP_ADDRESS]
+            and entry.data[CONF_PORT] == data[CONF_PORT]
+        ),
+        None,
+    )
+
+
 async def _validate_connection(hass: HomeAssistantType, user_input: ConfigType) -> bool:
     host = user_input[CONF_IP_ADDRESS]
     port = user_input[CONF_PORT]
@@ -74,9 +89,11 @@ class LcnFlowHandler(config_entries.ConfigFlow):
             )
 
         host_name = user_input.pop(CONF_HOST)
+        hass = cast(HomeAssistantType, self.hass)
+        if get_config_entry(hass, user_input):
+            return self.async_abort(reason="already_configured")
 
         try:
-            hass = cast(HomeAssistantType, self.hass)
             await _validate_connection(hass, user_input)
         except pypck.connection.PchkAuthenticationError:
             return self.async_abort(reason="authentication_error")
@@ -95,14 +112,14 @@ class LcnFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_import(self, info: ConfigType) -> ConfigType:
         """Import existing configuration from LCN."""
-        # check if we already have a host with the same name configured
+        # check if we already have a host with the same address configured
+        entry = get_config_entry(self.hass, info)
         host_name = info.pop(CONF_HOST)
-        entry = await self.async_set_unique_id(host_name)
+
         if entry:
             # await self.hass.config_entries.async_remove(entry.entry_id)
             entry.source = config_entries.SOURCE_IMPORT
-            hass = cast(HomeAssistantType, self.hass)
-            hass.config_entries.async_update_entry(entry, data=info)
+            self.hass.config_entries.async_update_entry(entry, data=info)
             return self.async_abort(reason="existing_configuration_updated")
 
         return self.async_create_entry(

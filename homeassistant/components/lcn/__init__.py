@@ -22,7 +22,7 @@ from .helpers import (
     async_update_lcn_host_device,
     import_lcn_config,
 )
-from .schemes import CONFIG_SCHEMA  # noqa: 401
+from .schemas import CONFIG_SCHEMA  # noqa: 401
 from .services import (
     DynText,
     Led,

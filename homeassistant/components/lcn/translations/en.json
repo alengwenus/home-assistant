@@ -1,7 +1,7 @@
 {
     "config": {
         "abort": {
-            "already_configured": "PCHK connection with the same name is already configured.",
+            "already_configured": "PCHK connection using the same ip address/port is already configured.",
             "authentication_error": "Authentication failed. Wrong username or password.",
             "connection_timeout": "Unable to connect to PCHK.",
             "lcn_not_connected_error": "No connection to the LCN hardware bus.",

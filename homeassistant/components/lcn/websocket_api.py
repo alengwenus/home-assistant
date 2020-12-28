@@ -49,7 +49,7 @@ from .helpers import (  # async_register_lcn_address_devices,
     get_entity_config,
     get_resource,
 )
-from .schemes import (
+from .schemas import (
     DOMAIN_DATA_BINARY_SENSOR,
     DOMAIN_DATA_CLIMATE,
     DOMAIN_DATA_COVER,

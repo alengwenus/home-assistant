@@ -185,22 +185,14 @@ async def async_update_lcn_host_device(
 ) -> None:
     """Register LCN host for given config_entry."""
     device_registry = await dr.async_get_registry(hass)
-    identifiers = {(DOMAIN, config_entry.entry_id)}
-    device_config = dict(
-        manufacturer="LCN",
-        name=f"{config_entry.title}",
+
+    device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, config_entry.entry_id)},
+        manufacturer="Issendorff",
+        name=config_entry.title,
         model="PCHK",
     )
-
-    device = device_registry.async_get_device(identifiers, set())
-    if device:  # update device properties if already in registry
-        device_registry.async_update_device(device.id, **device_config)
-    else:
-        device = device_registry.async_get_or_create(
-            config_entry_id=config_entry.entry_id,
-            identifiers=identifiers,
-            **device_config,
-        )
 
 
 async def async_update_lcn_address_devices(
@@ -214,7 +206,7 @@ async def async_update_lcn_address_devices(
     host_identifier = (DOMAIN, config_entry.entry_id)
     device_registry = await dr.async_get_registry(hass)
 
-    device_data = dict(manufacturer="LCN")
+    device_data = dict(manufacturer="Issendorff")
 
     for device_config in config_entry.data[CONF_DEVICES]:
         unique_device_id = device_config[CONF_UNIQUE_ID]
@@ -233,16 +225,12 @@ async def async_update_lcn_address_devices(
             device_data.update(sw_version=f"{device_config[CONF_SOFTWARE_SERIAL]:06X}")
 
         device_data.update(name=device_name, model=device_model)
-        device = device_registry.async_get_device(identifiers, set())
-        if device:  # update device properties if already in registry
-            device_registry.async_update_device(device.id, **device_data)
-        else:
-            device = device_registry.async_get_or_create(
-                config_entry_id=config_entry.entry_id,
-                identifiers=identifiers,
-                via_device=host_identifier,
-                **device_data,
-            )
+        device_registry.async_get_or_create(
+            config_entry_id=config_entry.entry_id,
+            identifiers=identifiers,
+            via_device=host_identifier,
+            **device_data,
+        )
 
 
 #

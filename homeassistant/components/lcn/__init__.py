@@ -1,4 +1,5 @@
 """Support for LCN devices."""
+import asyncio
 import logging
 
 import pypck
@@ -39,6 +40,8 @@ from .services import (
     VarReset,
 )
 
+PLATFORMS = ["binary_sensor", "climate", "cover", "light", "scene", "sensor", "switch"]
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -46,37 +49,26 @@ async def async_setup_entry(
     hass: HomeAssistantType, config_entry: config_entries.ConfigEntry
 ) -> bool:
     """Set up a connection to PCHK host from a config entry."""
-    host_id = config_entry.entry_id
-    host_address = config_entry.data[CONF_IP_ADDRESS]
-    port = config_entry.data[CONF_PORT]
-    username = config_entry.data[CONF_USERNAME]
-    password = config_entry.data[CONF_PASSWORD]
-    sk_num_tries = config_entry.data[CONF_SK_NUM_TRIES]
-    dim_mode = config_entry.data[CONF_DIM_MODE]
+    hass.data.setdefault(DOMAIN, {})
 
     settings = {
-        "SK_NUM_TRIES": sk_num_tries,
-        "DIM_MODE": pypck.lcn_defs.OutputPortDimMode[dim_mode],
+        "SK_NUM_TRIES": config_entry.data[CONF_SK_NUM_TRIES],
+        "DIM_MODE": pypck.lcn_defs.OutputPortDimMode[config_entry.data[CONF_DIM_MODE]],
     }
 
     # connect to PCHK
-    if host_id not in hass.data[DOMAIN]:
+    if config_entry.entry_id not in hass.data[DOMAIN]:
         lcn_connection = pypck.connection.PchkConnectionManager(
-            host_address,
-            port,
-            username,
-            password,
+            config_entry.data[CONF_IP_ADDRESS],
+            config_entry.data[CONF_PORT],
+            config_entry.data[CONF_USERNAME],
+            config_entry.data[CONF_PASSWORD],
             settings=settings,
-            connection_id=host_id,
+            connection_id=config_entry.title,
         )
         try:
             # establish connection to PCHK server
             await hass.async_create_task(lcn_connection.async_connect(timeout=15))
-            _LOGGER.info('LCN connected to "%s"', config_entry.title)
-            hass.data[DOMAIN][host_id] = {
-                CONNECTION: lcn_connection,
-                ADD_ENTITIES_CALLBACKS: {},
-            }
         except pypck.connection.PchkAuthenticationError:
             _LOGGER.warning('Authentication on PCHK "%s" failed.', config_entry.title)
             return False
@@ -97,8 +89,15 @@ async def async_setup_entry(
             _LOGGER.warning('Connection to PCHK "%s" failed.', config_entry.title)
             return False
 
+        _LOGGER.info('LCN connected to "%s"', config_entry.title)
+        hass.data[DOMAIN][config_entry.entry_id] = {
+            CONNECTION: lcn_connection,
+            ADD_ENTITIES_CALLBACKS: {},
+        }
+        config_entry.add_update_listener(async_entry_updated)
+
         # Update config_entry with LCN device serials
-        await hass.async_create_task(async_update_config_entry(hass, config_entry))
+        await async_update_config_entry(hass, config_entry)
 
         # Cleanup device registry, if we imported from configuration.yaml to remove
         # orphans when entities were removed from configuration
@@ -107,24 +106,13 @@ async def async_setup_entry(
             device_registry.async_clear_config_entry(config_entry.entry_id)
             config_entry.source = config_entries.SOURCE_USER
 
-        await hass.async_create_task(async_update_lcn_host_device(hass, config_entry))
-
-        await hass.async_create_task(
-            async_update_lcn_address_devices(hass, config_entry)
-        )
+        await async_update_lcn_host_device(hass, config_entry)
+        await async_update_lcn_address_devices(hass, config_entry)
 
         # forward config_entry to components
-        for domain in [
-            "binary_sensor",
-            "climate",
-            "cover",
-            "light",
-            "scene",
-            "sensor",
-            "switch",
-        ]:
+        for component in PLATFORMS:
             hass.async_create_task(
-                hass.config_entries.async_forward_entry_setup(config_entry, domain)
+                hass.config_entries.async_forward_entry_setup(config_entry, component)
             )
 
     # load the wepsocket api
@@ -133,26 +121,27 @@ async def async_setup_entry(
     return True
 
 
-async def async_unload_entry(
-    hass: HomeAssistantType, config_entry: config_entries.ConfigEntry
-) -> bool:
+async def async_unload_entry(hass, config_entry):
     """Close connection to PCHK host represented by config_entry."""
     # forward unloading to platforms
-    await hass.config_entries.async_forward_entry_unload(config_entry, "switch")
+    unload_ok = all(
+        await asyncio.gather(
+            *[
+                hass.config_entries.async_forward_entry_unload(config_entry, component)
+                for component in PLATFORMS
+            ]
+        )
+    )
 
-    # host = config_entry.data[CONF_HOST]
-    host_id = config_entry.entry_id
-    if host_id in hass.data[DOMAIN]:
-        host = hass.data[DOMAIN].pop(host_id)
+    if unload_ok and config_entry.entry_id in hass.data[DOMAIN]:
+        host = hass.data[DOMAIN].pop(config_entry.entry_id)
         await host[CONNECTION].async_close()
 
-    return True
+    return unload_ok
 
 
 async def async_setup(hass: HomeAssistantType, config: ConfigType) -> bool:
     """Set up the LCN component."""
-    hass.data[DOMAIN] = {}
-
     # register service calls
     for service_name, service in (
         ("output_abs", OutputAbs),
@@ -189,3 +178,10 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType) -> bool:
             )
         )
     return True
+
+
+async def async_entry_updated(hass, config_entry):
+    """Update listener to change connection name."""
+    hass.data[DOMAIN][config_entry.entry_id][
+        CONNECTION
+    ].connection_id = config_entry.title

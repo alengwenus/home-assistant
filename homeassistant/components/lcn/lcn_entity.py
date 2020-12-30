@@ -45,7 +45,7 @@ class LcnEntity(Entity):
                 )
             },
             "name": self.name,
-            "manufacturer": "LCN",
+            "manufacturer": "Issendorff",
             "model": hw_type,
             "via_device": (DOMAIN, self.host_id, self.config[CONF_UNIQUE_DEVICE_ID]),
         }

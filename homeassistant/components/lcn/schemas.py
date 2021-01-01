@@ -57,6 +57,8 @@ from .const import (
 )
 from .helpers import has_unique_host_names, is_address
 
+ADDRESS_SCHEMA = vol.Coerce(tuple)
+
 #
 # Domain data
 #

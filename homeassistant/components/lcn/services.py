@@ -42,7 +42,6 @@ from .const import (
 )
 from .helpers import (
     DeviceConnectionType,
-    generate_unique_id,
     get_device_connection,
     is_address,
     is_key_lock_states_string,
@@ -66,7 +65,6 @@ class LcnServiceCall:
     def get_device_connection(self, service: ServiceCallType) -> DeviceConnectionType:
         """Get address connection object."""
         address, host_id = service.data[CONF_ADDRESS]
-        unique_device_id = generate_unique_id(address)
 
         for config_entry in self.hass.config_entries.async_entries(DOMAIN):
             if config_entry.title == host_id:
@@ -74,9 +72,7 @@ class LcnServiceCall:
         else:
             raise ValueError("Invalid host ID.")
 
-        device_connection = get_device_connection(
-            self.hass, unique_device_id, config_entry
-        )
+        device_connection = get_device_connection(self.hass, address, config_entry)
 
         return device_connection
 

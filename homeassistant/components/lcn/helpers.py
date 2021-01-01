@@ -19,24 +19,19 @@ from homeassistant.const import (
     CONF_PASSWORD,
     CONF_PORT,
     CONF_RESOURCE,
-    CONF_UNIQUE_ID,
     CONF_USERNAME,
 )
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .const import (
-    CONF_ADDRESS_ID,
     CONF_CONNECTIONS,
     CONF_DIM_MODE,
     CONF_DOMAIN_DATA,
     CONF_HARDWARE_SERIAL,
     CONF_HARDWARE_TYPE,
-    CONF_IS_GROUP,
-    CONF_SEGMENT_ID,
     CONF_SK_NUM_TRIES,
     CONF_SOFTWARE_SERIAL,
-    CONF_UNIQUE_DEVICE_ID,
     CONNECTION,
     DEFAULT_NAME,
     DOMAIN,
@@ -69,7 +64,7 @@ DOMAIN_LOOKUP = {
 
 
 def get_resource(domain_name: str, domain_data: ConfigType) -> str:
-    """Return the reosurce for the specified domain_data."""
+    """Return the resource for the specified domain_data."""
     if domain_name in ["switch", "light"]:
         return f'{domain_data["output"]}'
     if domain_name in ["binary_sensor", "sensor"]:
@@ -84,17 +79,16 @@ def get_resource(domain_name: str, domain_data: ConfigType) -> str:
 
 
 def generate_unique_id(
-    address: Optional[Tuple[int, int, bool]] = None,
+    address: Tuple[int, int, bool],
     domain_config: Optional[Tuple[str, ConfigType]] = None,
 ):
     """Generate a unique_id from the given parameters."""
     unique_id = ""
-    if address:
-        is_group = "g" if address[2] else "m"
-        unique_id += f"{is_group}{address[0]:03d}{address[1]:03d}"
-        if domain_config:
-            resource = get_resource(*domain_config)
-            unique_id += f"-{resource}".lower()
+    is_group = "g" if address[2] else "m"
+    unique_id += f"{is_group}{address[0]:03d}{address[1]:03d}"
+    if domain_config:
+        resource = get_resource(*domain_config)
+        unique_id += f"-{resource}".lower()
     return unique_id
 
 
@@ -108,7 +102,6 @@ def import_lcn_config(lcn_config: ConfigType) -> List[ConfigType]:
     data = {}
     for connection in lcn_config[CONF_CONNECTIONS]:
         host = {
-            # CONF_UNIQUE_ID: generate_unique_id(connection[CONF_NAME]),
             CONF_HOST: connection[CONF_NAME],
             CONF_IP_ADDRESS: connection[CONF_HOST],
             CONF_PORT: connection[CONF_PORT],
@@ -135,17 +128,13 @@ def import_lcn_config(lcn_config: ConfigType) -> List[ConfigType]:
                 host_name = DEFAULT_NAME
 
             # check if we have a new device config
-            unique_device_id = generate_unique_id(address)
             for device_config in data[host_name][CONF_DEVICES]:
-                if unique_device_id == device_config[CONF_UNIQUE_ID]:
+                if address == device_config[CONF_ADDRESS]:
                     break
             else:  # create new device_config
                 device_config = {
-                    CONF_UNIQUE_ID: unique_device_id,
+                    CONF_ADDRESS: address,
                     CONF_NAME: "",
-                    CONF_SEGMENT_ID: address[0],
-                    CONF_ADDRESS_ID: address[1],
-                    CONF_IS_GROUP: address[2],
                     CONF_HARDWARE_SERIAL: -1,
                     CONF_SOFTWARE_SERIAL: -1,
                     CONF_HARDWARE_TYPE: -1,
@@ -156,14 +145,14 @@ def import_lcn_config(lcn_config: ConfigType) -> List[ConfigType]:
             resource = get_resource(domain_name, domain_data).lower()
             for entity_config in data[host_name][CONF_ENTITIES]:
                 if (
-                    unique_device_id == entity_config[CONF_UNIQUE_DEVICE_ID]
+                    address == entity_config[CONF_ADDRESS]
                     and resource == entity_config[CONF_RESOURCE]
                     and domain_name == entity_config[CONF_DOMAIN]
                 ):
                     break
             else:  # create new entity_config
                 entity_config = {
-                    CONF_UNIQUE_DEVICE_ID: unique_device_id,
+                    CONF_ADDRESS: address,
                     CONF_NAME: entity_name,
                     CONF_RESOURCE: resource,
                     CONF_DOMAIN: domain_name,
@@ -209,19 +198,19 @@ async def async_update_lcn_address_devices(
     device_data = dict(manufacturer="Issendorff")
 
     for device_config in config_entry.data[CONF_DEVICES]:
-        unique_device_id = device_config[CONF_UNIQUE_ID]
+        address = device_config[CONF_ADDRESS]
         device_name = device_config[CONF_NAME]
         # identifiers = {(DOMAIN, unique_device_id)}
-        identifiers = {(DOMAIN, config_entry.entry_id, unique_device_id)}
+        identifiers = {(DOMAIN, config_entry.entry_id, *address)}
 
-        if device_config[CONF_IS_GROUP]:
+        if device_config[CONF_ADDRESS][2]:
             # get group info
             # device_model = f"group ({unique_device_id.split('.', 2)[2]})"
-            device_model = f"group ({unique_device_id})"
+            device_model = f"group (g{address[0]:03d}{address[1]:03d})"
         else:
             # get module info
             # device_model = f"module ({unique_device_id.split('.', 2)[2]})"
-            device_model = f"module ({unique_device_id})"
+            device_model = f"module (m{address[0]:03d}{address[1]:03d})"
             device_data.update(sw_version=f"{device_config[CONF_SOFTWARE_SERIAL]:06X}")
 
         device_data.update(name=device_name, model=device_model)
@@ -242,7 +231,8 @@ async def async_update_device_config(
     device_connection: DeviceConnectionType, device_config: ConfigType
 ):
     """Fill missing values in device_config from LCN."""
-    if not device_config[CONF_IS_GROUP]:
+    is_group = device_config[CONF_ADDRESS][2]
+    if not is_group:  # device is a module
         await device_connection.serial_known
         if device_config[CONF_HARDWARE_SERIAL] == -1:
             device_config[CONF_HARDWARE_SERIAL] = device_connection.hardware_serial
@@ -252,12 +242,12 @@ async def async_update_device_config(
             device_config[CONF_HARDWARE_TYPE] = device_connection.hardware_type.value
 
     if device_config[CONF_NAME] == "":
-        if device_config[CONF_IS_GROUP] or device_connection.hardware_serial == -1:
-            module_type = "Group" if device_config[CONF_IS_GROUP] else "Module"
+        if is_group or device_connection.hardware_serial == -1:
+            module_type = "Group" if is_group else "Module"
             device_name = (
                 f"{module_type} "
-                f"{device_config[CONF_SEGMENT_ID]:03d}/"
-                f"{device_config[CONF_ADDRESS_ID]:03d}"
+                f"{device_config[CONF_ADDRESS][0]:03d}/"
+                f"{device_config[CONF_ADDRESS][1]:03d}"
             )
         else:
             device_name = await device_connection.request_name()
@@ -271,7 +261,7 @@ async def async_update_config_entry(
     coros = []
     for device_config in config_entry.data[CONF_DEVICES]:
         device_connection = get_device_connection(
-            hass, device_config[CONF_UNIQUE_ID], config_entry
+            hass, device_config[CONF_ADDRESS], config_entry
         )
         coros.append(async_update_device_config(device_connection, device_config))
 
@@ -287,65 +277,44 @@ def get_config_entry(hass: HomeAssistantType, host_id: str) -> Optional[ConfigEn
 
 
 def get_device_config(
-    unique_device_id: str, config_entry: ConfigEntry
+    address: Tuple[int, int, bool], config_entry: ConfigEntry
 ) -> Optional[ConfigType]:
     """Return the configuration for given unique_device_id."""
     for device_config in config_entry.data[CONF_DEVICES]:
-        if device_config[CONF_UNIQUE_ID] == unique_device_id:
+        if tuple(device_config[CONF_ADDRESS]) == address:
             return device_config
     return None
 
 
 def get_entity_config(
-    unique_device_id: str, domain: str, resource: str, config_entry: ConfigEntry
+    address: Tuple[int, int, bool],
+    domain: str,
+    resource: str,
+    config_entry: ConfigEntry,
 ) -> ConfigType:
     """Return the configuration for given unique_entity_id."""
     return next(
         entity_config
         for entity_config in config_entry.data[CONF_ENTITIES]
         if (
-            entity_config[CONF_UNIQUE_DEVICE_ID] == unique_device_id
+            entity_config[CONF_ADDRESS] == address
             and entity_config[CONF_DOMAIN] == domain
             and entity_config[CONF_RESOURCE] == resource
         )
     )
 
 
-def get_device_address(device_config: ConfigType) -> Tuple[int, int, bool]:
-    """Return a tuple with address information."""
-    return (
-        device_config[CONF_SEGMENT_ID],
-        device_config[CONF_ADDRESS_ID],
-        device_config[CONF_IS_GROUP],
-    )
-
-
 def get_device_connection(
-    hass: HomeAssistantType, unique_device_id: str, config_entry: ConfigEntry
+    hass: HomeAssistantType, address: Tuple[int, int, bool], config_entry: ConfigEntry
 ) -> Optional[DeviceConnectionType]:
     """Return a lcn device_connection."""
-    device_config = get_device_config(unique_device_id, config_entry)
+    device_config = get_device_config(address, config_entry)
     if device_config:
         host_connection = hass.data[DOMAIN][config_entry.entry_id][CONNECTION]
-        addr = pypck.lcn_addr.LcnAddr(*get_device_address(device_config))
+        addr = pypck.lcn_addr.LcnAddr(*address)
         device_connection = host_connection.get_address_conn(addr)
         return device_connection
     return None
-
-
-def get_connection(
-    hosts: List[PchkConnectionManagerType], host_name: Optional[str] = None
-) -> PchkConnectionManagerType:
-    """Return the connection object from list."""
-    if host_name is None:
-        host = hosts[0]
-    else:
-        for host in hosts:
-            if host.host_name == host_name:
-                break
-        else:
-            raise ValueError("Unknown host_name.")
-    return host
 
 
 def has_unique_host_names(hosts: List[ConfigType]) -> List[ConfigType]:

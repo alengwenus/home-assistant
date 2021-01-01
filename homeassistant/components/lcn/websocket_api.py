@@ -10,6 +10,7 @@ from homeassistant.components import websocket_api
 from homeassistant.components.websocket_api import ActiveConnection
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    CONF_ADDRESS,
     CONF_DEVICES,
     CONF_DOMAIN,
     CONF_ENTITIES,
@@ -18,7 +19,6 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_PORT,
     CONF_RESOURCE,
-    CONF_UNIQUE_ID,
 )
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
@@ -27,13 +27,9 @@ from homeassistant.helpers.typing import HomeAssistantType
 
 from .const import (
     ADD_ENTITIES_CALLBACKS,
-    CONF_ADDRESS_ID,
     CONF_HARDWARE_SERIAL,
     CONF_HARDWARE_TYPE,
-    CONF_IS_GROUP,
-    CONF_SEGMENT_ID,
     CONF_SOFTWARE_SERIAL,
-    CONF_UNIQUE_DEVICE_ID,
     CONNECTION,
     DOMAIN,
 )
@@ -42,14 +38,13 @@ from .helpers import (  # async_register_lcn_address_devices,
     async_update_device_config,
     async_update_lcn_address_devices,
     generate_unique_id,
-    get_config_entry,
-    get_device_address,
     get_device_config,
     get_device_connection,
     get_entity_config,
     get_resource,
 )
 from .schemas import (
+    ADDRESS_SCHEMA,
     DOMAIN_DATA_BINARY_SENSOR,
     DOMAIN_DATA_CLIMATE,
     DOMAIN_DATA_COVER,
@@ -76,9 +71,7 @@ def sort_lcn_config_entry(config_entry: ConfigEntry):
     """Sort given config_entry."""
 
     # sort devices_config
-    config_entry.data[CONF_DEVICES].sort(
-        key=itemgetter(ATTR_IS_GROUP, ATTR_SEGMENT_ID, ATTR_ADDRESS_ID)
-    )
+    config_entry.data[CONF_DEVICES].sort(key=itemgetter(CONF_ADDRESS))
 
     # sort entities_config
     config_entry.data[CONF_ENTITIES].sort(key=itemgetter(ATTR_DOMAIN, ATTR_RESOURCE))
@@ -115,7 +108,7 @@ async def websocket_get_device_configs(
     hass: HomeAssistantType, connection: ActiveConnection, msg: dict
 ) -> None:
     """Get device configs."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
+    config_entry = hass.config_entries.async_get_entry(msg[ATTR_HOST_ID])
     if config_entry is None:
         return
 
@@ -129,18 +122,18 @@ async def websocket_get_device_configs(
     {
         vol.Required(TYPE): "lcn/device",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required(CONF_UNIQUE_DEVICE_ID): cv.string,
+        vol.Required(CONF_ADDRESS): ADDRESS_SCHEMA,
     }
 )
 async def websocket_get_device_config(
     hass: HomeAssistantType, connection: ActiveConnection, msg: dict
 ) -> None:
     """Get device config."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
+    config_entry = hass.config_entries.async_get_entry(msg[ATTR_HOST_ID])
     if config_entry is None:
         return
 
-    device_config = get_device_config(msg[CONF_UNIQUE_DEVICE_ID], config_entry)
+    device_config = get_device_config(msg[CONF_ADDRESS], config_entry)
     connection.send_result(msg[ID], device_config)
 
 
@@ -150,14 +143,14 @@ async def websocket_get_device_config(
     {
         vol.Required(TYPE): "lcn/entities",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required(CONF_UNIQUE_DEVICE_ID): cv.string,
+        vol.Required(CONF_ADDRESS): ADDRESS_SCHEMA,
     }
 )
 async def websocket_get_entity_configs(
     hass: HomeAssistantType, connection: ActiveConnection, msg: dict
 ) -> None:
     """Get entities configs."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
+    config_entry = hass.config_entries.async_get_entry(msg[ATTR_HOST_ID])
     if config_entry is None:
         return
 
@@ -165,7 +158,7 @@ async def websocket_get_entity_configs(
     entity_configs = [
         entity_config
         for entity_config in config_entry.data[CONF_ENTITIES]
-        if entity_config[CONF_UNIQUE_DEVICE_ID] == msg[CONF_UNIQUE_DEVICE_ID]
+        if entity_config[CONF_ADDRESS] == msg[CONF_ADDRESS]
     ]
     connection.send_result(msg[ID], entity_configs)
 
@@ -179,12 +172,11 @@ async def websocket_scan_devices(
     hass: HomeAssistantType, connection: ActiveConnection, msg: dict
 ) -> None:
     """Scan for new devices."""
-    host_id = msg[ATTR_HOST_ID]
-    config_entry = get_config_entry(hass, host_id)
+    config_entry = hass.config_entries.async_get_entry(msg[ATTR_HOST_ID])
     if config_entry is None:
         return
 
-    host_connection = hass.data[DOMAIN][host_id][CONNECTION]
+    host_connection = hass.data[DOMAIN][config_entry.entry_id][CONNECTION]
     await host_connection.scan_modules()
 
     lock = asyncio.Lock()
@@ -214,9 +206,7 @@ async def websocket_scan_devices(
     {
         vol.Required(TYPE): "lcn/device/add",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required(ATTR_SEGMENT_ID): cv.positive_int,
-        vol.Required(ATTR_ADDRESS_ID): cv.positive_int,
-        vol.Required(ATTR_IS_GROUP): cv.boolean,
+        vol.Required(CONF_ADDRESS): ADDRESS_SCHEMA,
         vol.Required(ATTR_NAME): cv.string,
     }
 )
@@ -224,13 +214,13 @@ async def websocket_add_device(
     hass: HomeAssistantType, connection: ActiveConnection, msg: dict
 ) -> None:
     """Add a device."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
+    config_entry = hass.config_entries.async_get_entry(msg[ATTR_HOST_ID])
     if config_entry is None:
         return
 
-    address = (msg[ATTR_SEGMENT_ID], msg[ATTR_ADDRESS_ID], msg[ATTR_IS_GROUP])
-
-    result = await hass.async_create_task(add_device(hass, config_entry, address))
+    result = await hass.async_create_task(
+        add_device(hass, config_entry, msg[CONF_ADDRESS])
+    )
 
     if result:
         # sort config_entry
@@ -254,19 +244,19 @@ async def websocket_add_device(
     {
         vol.Required(TYPE): "lcn/device/delete",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required(CONF_UNIQUE_ID): cv.string,
+        vol.Required(CONF_ADDRESS): ADDRESS_SCHEMA,
     }
 )
 async def websocket_delete_device(
     hass: HomeAssistantType, connection: ActiveConnection, msg: dict
 ) -> None:
     """Delete a device."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
+    config_entry = hass.config_entries.async_get_entry(msg[ATTR_HOST_ID])
     if config_entry is None:
         return
 
     device_registry = await dr.async_get_registry(hass)
-    delete_device(config_entry, device_registry, msg[CONF_UNIQUE_ID])
+    delete_device(config_entry, device_registry, msg[CONF_ADDRESS])
 
     # sort config_entry
     sort_lcn_config_entry(config_entry)
@@ -284,7 +274,7 @@ async def websocket_delete_device(
     {
         vol.Required(TYPE): "lcn/entity/add",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required(CONF_UNIQUE_DEVICE_ID): cv.string,
+        vol.Required(CONF_ADDRESS): ADDRESS_SCHEMA,
         vol.Required(ATTR_NAME): cv.string,
         vol.Required(ATTR_DOMAIN): cv.string,
         vol.Required(ATTR_DOMAIN_DATA): vol.Any(
@@ -302,15 +292,15 @@ async def websocket_add_entity(
     hass: HomeAssistantType, connection: ActiveConnection, msg: dict
 ) -> None:
     """Add an entity."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
+    config_entry = hass.config_entries.async_get_entry(msg[ATTR_HOST_ID])
     if config_entry is None:
         return
-    device_config = get_device_config(msg[CONF_UNIQUE_DEVICE_ID], config_entry)
+    device_config = get_device_config(msg[CONF_ADDRESS], config_entry)
     if device_config is None:
         return
 
     unique_id = generate_unique_id(
-        get_device_address(device_config),
+        device_config[CONF_ADDRESS],
         (msg[ATTR_DOMAIN], msg[ATTR_DOMAIN_DATA]),
     )
 
@@ -326,8 +316,7 @@ async def websocket_add_entity(
         domain_data = msg[ATTR_DOMAIN_DATA]
         resource = get_resource(domain_name, domain_data).lower()
         entity_config = {
-            # CONF_UNIQUE_ID: unique_id,
-            CONF_UNIQUE_DEVICE_ID: msg[CONF_UNIQUE_DEVICE_ID],
+            CONF_ADDRESS: msg[CONF_ADDRESS],
             CONF_NAME: msg[ATTR_NAME],
             ATTR_RESOURCE: resource,
             ATTR_DOMAIN: domain_name,
@@ -361,7 +350,7 @@ async def websocket_add_entity(
     {
         vol.Required(TYPE): "lcn/entity/delete",
         vol.Required(ATTR_HOST_ID): cv.string,
-        vol.Required(CONF_UNIQUE_DEVICE_ID): cv.string,
+        vol.Required(CONF_ADDRESS): ADDRESS_SCHEMA,
         vol.Required(CONF_DOMAIN): cv.string,
         vol.Required(CONF_RESOURCE): cv.string,
     }
@@ -370,7 +359,7 @@ async def websocket_delete_entity(
     hass: HomeAssistantType, connection: ActiveConnection, msg: dict
 ) -> None:
     """Delete an entity."""
-    config_entry = get_config_entry(hass, msg[ATTR_HOST_ID])
+    config_entry = hass.config_entries.async_get_entry(msg[ATTR_HOST_ID])
     if config_entry is None:
         return
 
@@ -378,7 +367,7 @@ async def websocket_delete_entity(
     delete_entity(
         config_entry,
         device_registry,
-        msg[CONF_UNIQUE_DEVICE_ID],
+        msg[CONF_ADDRESS],
         msg[CONF_DOMAIN],
         msg[CONF_RESOURCE],
     )
@@ -397,17 +386,12 @@ async def add_device(
     hass: HomeAssistantType, config_entry: ConfigEntry, address: Tuple[int, int, bool]
 ) -> bool:
     """Add a device to config_entry and device_registry."""
-    unique_device_id = generate_unique_id(address)
-
-    if get_device_config(unique_device_id, config_entry):
+    if get_device_config(address, config_entry):
         return False  # device_config already in config_entry
 
     device_config = {
-        CONF_UNIQUE_ID: unique_device_id,
+        CONF_ADDRESS: address,
         ATTR_NAME: "",
-        ATTR_SEGMENT_ID: address[0],
-        ATTR_ADDRESS_ID: address[1],
-        ATTR_IS_GROUP: address[2],
         CONF_HARDWARE_SERIAL: -1,
         CONF_SOFTWARE_SERIAL: -1,
         CONF_HARDWARE_TYPE: -1,
@@ -417,36 +401,36 @@ async def add_device(
     config_entry.data[CONF_DEVICES].append(device_config)
 
     # update device info from LCN
-    device_connection = get_device_connection(
-        hass, device_config[CONF_UNIQUE_ID], config_entry
-    )
+    device_connection = get_device_connection(hass, address, config_entry)
     await async_update_device_config(device_connection, device_config)
 
     return True
 
 
 def delete_device(
-    config_entry: ConfigEntry, device_registry: dr.DeviceRegistry, unique_id: str
+    config_entry: ConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    address: Tuple[int, int, bool],
 ) -> None:
     """Delete a device from config_entry and device_registry."""
-    device_config = get_device_config(unique_id, config_entry)
+    device_config = get_device_config(address, config_entry)
     if device_config is None:
         return
 
     # delete all child devices (and entities)
     for entity_config in config_entry.data[CONF_ENTITIES][:]:
-        if entity_config[CONF_UNIQUE_DEVICE_ID] == device_config[CONF_UNIQUE_ID]:
+        if entity_config[CONF_ADDRESS] == address:
             delete_entity(
                 config_entry,
                 device_registry,
-                entity_config[CONF_UNIQUE_DEVICE_ID],
+                entity_config[CONF_ADDRESS],
                 entity_config[CONF_DOMAIN],
                 entity_config[CONF_RESOURCE],
             )
 
     # now delete module/group device
     # identifiers = {(DOMAIN, unique_id)}
-    identifiers = {(DOMAIN, config_entry.entry_id, unique_id)}
+    identifiers = {(DOMAIN, config_entry.entry_id, *address)}
     device = device_registry.async_get_device(identifiers, set())
 
     if device:
@@ -457,14 +441,14 @@ def delete_device(
 def delete_entity(
     config_entry: ConfigEntry,
     device_registry: dr.DeviceRegistry,
-    unique_device_id: str,
+    address: Tuple[int, int, bool],
     domain: str,
     resource: str,
 ) -> None:
     """Delete an entity from config_entry and device_registry/entity_registry."""
-    entity_config = get_entity_config(unique_device_id, domain, resource, config_entry)
+    entity_config = get_entity_config(address, domain, resource, config_entry)
 
-    identifiers = {(DOMAIN, config_entry.entry_id, unique_device_id, domain, resource)}
+    identifiers = {(DOMAIN, config_entry.entry_id, *address, domain, resource)}
     entity_device = device_registry.async_get_device(identifiers, set())
 
     if entity_device:
@@ -479,32 +463,22 @@ async def async_create_or_update_device(
     lock: asyncio.Lock,
 ) -> None:
     """Create or update device in config_entry according to given device_connection."""
+    address = (
+        device_connection.seg_id,
+        device_connection.addr_id,
+        device_connection.is_group,
+    )
     async with lock:  # prevent simultaneous access to config_entry
         for device_config in config_entry.data[CONF_DEVICES]:
-            if (
-                device_config[CONF_SEGMENT_ID] == device_connection.seg_id
-                and device_config[CONF_ADDRESS_ID] == device_connection.addr_id
-                and device_config[CONF_IS_GROUP] == device_connection.is_group
-            ):
-                if device_config[CONF_IS_GROUP]:
+            if device_config[CONF_ADDRESS] == address:
+                if device_config[CONF_ADDRESS][2]:
                     device_config[CONF_NAME] = ""
                 break  # device already in config_entry
         else:
             # create new device_entry
-            unique_device_id = generate_unique_id(
-                # config_entry.data[CONF_HOST],
-                (
-                    device_connection.seg_id,
-                    device_connection.addr_id,
-                    device_connection.is_group,
-                ),
-            )
             device_config = {
-                CONF_UNIQUE_ID: unique_device_id,
+                CONF_ADDRESS: address,
                 CONF_NAME: "",
-                CONF_SEGMENT_ID: device_connection.seg_id,
-                CONF_ADDRESS_ID: device_connection.addr_id,
-                CONF_IS_GROUP: device_connection.is_group,
                 CONF_HARDWARE_SERIAL: -1,
                 CONF_SOFTWARE_SERIAL: -1,
                 CONF_HARDWARE_TYPE: -1,

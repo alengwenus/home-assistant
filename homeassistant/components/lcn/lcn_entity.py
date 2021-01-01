@@ -1,12 +1,12 @@
 """Entity class that represents LCN entity."""
 from typing import Any, Dict
 
-from homeassistant.const import CONF_DOMAIN, CONF_NAME, CONF_RESOURCE
+from homeassistant.const import CONF_ADDRESS, CONF_DOMAIN, CONF_NAME, CONF_RESOURCE
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
 
-from .const import CONF_UNIQUE_DEVICE_ID, DOMAIN
-from .helpers import DeviceConnectionType, InputType
+from .const import DOMAIN
+from .helpers import DeviceConnectionType, InputType, generate_unique_id
 
 
 class LcnEntity(Entity):
@@ -24,7 +24,14 @@ class LcnEntity(Entity):
     @property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return f"{self.host_id}-{self.config[CONF_UNIQUE_DEVICE_ID]}-{self.config[CONF_RESOURCE]}"
+        unique_device_id = generate_unique_id(
+            (
+                self.device_connection.seg_id,
+                self.device_connection.addr_id,
+                self.device_connection.is_group,
+            )
+        )
+        return f"{self.host_id}-{unique_device_id}-{self.config[CONF_RESOURCE]}"
 
     @property
     def device_info(self) -> Dict[str, Any]:
@@ -39,7 +46,7 @@ class LcnEntity(Entity):
                 (
                     DOMAIN,
                     self.host_id,
-                    self.config[CONF_UNIQUE_DEVICE_ID],
+                    *self.config[CONF_ADDRESS],
                     self.config[CONF_DOMAIN],
                     self.config[CONF_RESOURCE],
                 )
@@ -47,7 +54,7 @@ class LcnEntity(Entity):
             "name": self.name,
             "manufacturer": "Issendorff",
             "model": hw_type,
-            "via_device": (DOMAIN, self.host_id, self.config[CONF_UNIQUE_DEVICE_ID]),
+            "via_device": (DOMAIN, self.host_id, *self.config[CONF_ADDRESS]),
         }
 
     @property

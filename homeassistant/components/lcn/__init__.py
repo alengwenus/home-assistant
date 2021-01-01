@@ -24,21 +24,22 @@ from .helpers import (
     import_lcn_config,
 )
 from .schemas import CONFIG_SCHEMA  # noqa: 401
-from .services import (
-    DynText,
-    Led,
-    LockKeys,
-    LockRegulator,
-    OutputAbs,
-    OutputRel,
-    OutputToggle,
-    Pck,
-    Relays,
-    SendKeys,
-    VarAbs,
-    VarRel,
-    VarReset,
-)
+
+# from .services import (
+#     DynText,
+#     Led,
+#     LockKeys,
+#     LockRegulator,
+#     OutputAbs,
+#     OutputRel,
+#     OutputToggle,
+#     Pck,
+#     Relays,
+#     SendKeys,
+#     VarAbs,
+#     VarRel,
+#     VarReset,
+# )
 
 PLATFORMS = ["binary_sensor", "climate", "cover", "light", "scene", "sensor", "switch"]
 
@@ -143,25 +144,24 @@ async def async_unload_entry(hass, config_entry):
 async def async_setup(hass: HomeAssistantType, config: ConfigType) -> bool:
     """Set up the LCN component."""
     # register service calls
-    for service_name, service in (
-        ("output_abs", OutputAbs),
-        ("output_rel", OutputRel),
-        ("output_toggle", OutputToggle),
-        ("relays", Relays),
-        ("var_abs", VarAbs),
-        ("var_reset", VarReset),
-        ("var_rel", VarRel),
-        ("lock_regulator", LockRegulator),
-        ("led", Led),
-        ("send_keys", SendKeys),
-        ("lock_keys", LockKeys),
-        ("dyn_text", DynText),
-        ("pck", Pck),
-    ):
-        hass.services.async_register(
-            DOMAIN, service_name, service(hass).async_call_service, service.schema
-        )
-
+    # for service_name, service in (
+    #     ("output_abs", OutputAbs),
+    #     ("output_rel", OutputRel),
+    #     ("output_toggle", OutputToggle),
+    #     ("relays", Relays),
+    #     ("var_abs", VarAbs),
+    #     ("var_reset", VarReset),
+    #     ("var_rel", VarRel),
+    #     ("lock_regulator", LockRegulator),
+    #     ("led", Led),
+    #     ("send_keys", SendKeys),
+    #     ("lock_keys", LockKeys),
+    #     ("dyn_text", DynText),
+    #     ("pck", Pck),
+    # ):
+    #     hass.services.async_register(
+    #         DOMAIN, service_name, service(hass).async_call_service, service.schema
+    #     )
     if DOMAIN not in config:
         return True
 

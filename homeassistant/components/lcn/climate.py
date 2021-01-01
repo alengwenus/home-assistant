@@ -11,6 +11,7 @@ from homeassistant.components.climate import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_TEMPERATURE,
+    CONF_ADDRESS,
     CONF_DOMAIN,
     CONF_ENTITIES,
     CONF_UNIT_OF_MEASUREMENT,
@@ -25,7 +26,6 @@ from .const import (
     CONF_MIN_TEMP,
     CONF_SETPOINT,
     CONF_SOURCE,
-    CONF_UNIQUE_DEVICE_ID,
     DOMAIN as DOMAIN_LCN,
 )
 from .helpers import DeviceConnectionType, InputType, get_device_connection
@@ -40,7 +40,7 @@ def create_lcn_climate_entity(
     """Set up an entity for this domain."""
     host_name = config_entry.entry_id
     device_connection = get_device_connection(
-        hass, entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
+        hass, entity_config[CONF_ADDRESS], config_entry
     )
 
     return LcnClimate(entity_config, host_name, device_connection)

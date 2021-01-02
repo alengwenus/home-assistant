@@ -1,4 +1,6 @@
 """Test for the LCN sensor platform."""
+from unittest.mock import call, patch
+
 from pypck.inputs import ModStatusLedsAndLogicOps, ModStatusVar
 from pypck.lcn_addr import LcnAddr
 from pypck.lcn_defs import LedPort, LedStatus, LogicOpPort, LogicOpStatus, Var, VarValue
@@ -8,8 +10,6 @@ from homeassistant.components.sensor import DOMAIN as DOMAIN_SENSOR
 from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, TEMP_CELSIUS
 
 from .conftest import MockModuleConnection, setup_platform
-
-from tests.async_mock import call, patch
 
 
 @patch.object(MockModuleConnection, "activate_status_request_handler")

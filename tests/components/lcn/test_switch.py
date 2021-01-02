@@ -1,4 +1,6 @@
 """Test for the LCN switch platform."""
+from unittest.mock import call, patch
+
 from pypck.inputs import ModStatusOutput, ModStatusRelays
 from pypck.lcn_addr import LcnAddr
 from pypck.lcn_defs import OutputPort, RelayPort, RelayStateModifier
@@ -14,8 +16,6 @@ from homeassistant.const import (
 )
 
 from .conftest import MockModuleConnection, setup_platform
-
-from tests.async_mock import call, patch
 
 
 @patch.object(MockModuleConnection, "activate_status_request_handler")

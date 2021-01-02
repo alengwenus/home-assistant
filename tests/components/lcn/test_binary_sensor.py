@@ -1,4 +1,6 @@
 """Test for the LCN binary sensor platform."""
+from unittest.mock import call, patch
+
 from pypck.inputs import ModStatusBinSensors, ModStatusKeyLocks, ModStatusVar
 from pypck.lcn_addr import LcnAddr
 from pypck.lcn_defs import BinSensorPort, Key, Var, VarValue
@@ -8,8 +10,6 @@ from homeassistant.components.lcn.helpers import get_device_connection
 from homeassistant.const import STATE_OFF, STATE_ON
 
 from .conftest import MockModuleConnection, setup_platform
-
-from tests.async_mock import call, patch
 
 
 @patch.object(MockModuleConnection, "activate_status_request_handler")

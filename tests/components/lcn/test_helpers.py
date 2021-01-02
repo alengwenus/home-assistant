@@ -1,4 +1,6 @@
 """Test helpers for the LCN integration."""
+from unittest.mock import patch
+
 import pytest
 
 from homeassistant.components.lcn import DOMAIN, helpers
@@ -6,8 +8,6 @@ from homeassistant.components.lcn.const import CONNECTION
 from homeassistant.const import CONF_DEVICES
 
 from .conftest import MockPchkConnectionManager, init_integration
-
-from tests.async_mock import patch
 
 
 def test_get_device_config(entry):

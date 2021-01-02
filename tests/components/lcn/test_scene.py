@@ -1,12 +1,12 @@
 """Test for the LCN scene platform."""
+from unittest.mock import patch
+
 from pypck.lcn_defs import OutputPort, RelayPort
 
 from homeassistant.components.scene import DOMAIN as DOMAIN_SCENE
 from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_ON
 
 from .conftest import MockModuleConnection, setup_platform
-
-from tests.async_mock import patch
 
 
 async def test_entity_attributes(hass, entry):

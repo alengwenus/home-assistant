@@ -1,5 +1,6 @@
 """Test configuration and mocks for LCN component."""
 import json
+from unittest.mock import AsyncMock, patch
 
 import pypck
 from pypck.connection import PchkConnectionManager
@@ -22,7 +23,6 @@ from homeassistant.const import (
 )
 from homeassistant.setup import async_setup_component
 
-from tests.async_mock import AsyncMock, patch
 from tests.common import MockConfigEntry, load_fixture
 
 

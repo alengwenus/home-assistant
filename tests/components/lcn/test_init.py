@@ -1,4 +1,6 @@
 """Test init of LCN integration."""
+from unittest.mock import patch
+
 from pypck.connection import (
     PchkAuthenticationError,
     PchkConnectionManager,
@@ -16,8 +18,6 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 
 from .conftest import MockPchkConnectionManager, init_integration, setup_component
-
-from tests.async_mock import patch
 
 
 @patch("pypck.connection.PchkConnectionManager", MockPchkConnectionManager)

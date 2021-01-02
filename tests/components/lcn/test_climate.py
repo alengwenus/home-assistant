@@ -1,5 +1,7 @@
 """Test for the LCN climate platform."""
 
+from unittest.mock import call, patch
+
 from pypck.inputs import ModStatusVar, Unknown
 from pypck.lcn_addr import LcnAddr
 from pypck.lcn_defs import Var, VarUnit, VarValue
@@ -27,8 +29,6 @@ from homeassistant.const import (
 )
 
 from .conftest import MockModuleConnection, setup_platform
-
-from tests.async_mock import call, patch
 
 
 @patch.object(MockModuleConnection, "activate_status_request_handler")

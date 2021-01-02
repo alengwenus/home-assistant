@@ -1,4 +1,6 @@
 """Test for the LCN services."""
+from unittest.mock import patch
+
 import pypck
 import pytest
 
@@ -6,8 +8,6 @@ from homeassistant.components.lcn import DOMAIN
 from homeassistant.setup import async_setup_component
 
 from .conftest import MockModuleConnection, MockPchkConnectionManager, setup_component
-
-from tests.async_mock import patch
 
 
 @patch("pypck.connection.PchkConnectionManager", MockPchkConnectionManager)

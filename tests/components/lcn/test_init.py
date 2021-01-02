@@ -8,7 +8,7 @@ from pypck.connection import (
 )
 
 from homeassistant import config_entries
-from homeassistant.components.lcn.const import CONNECTION, DOMAIN
+from homeassistant.components.lcn.const import DOMAIN
 from homeassistant.config_entries import (
     ENTRY_STATE_LOADED,
     ENTRY_STATE_NOT_LOADED,
@@ -103,24 +103,10 @@ async def test_async_setup_from_configuration_yaml(hass):
     """Test a successful setup using data from configuration.yaml."""
     await async_setup_component(hass, "persistent_notification", {})
 
-    with patch(
+    with patch("homeassistant.components.lcn.config_flow.validate_connection"), patch(
         "homeassistant.components.lcn.async_setup_entry", return_value=True
     ) as async_setup_entry:
+        pass
         await setup_component(hass)
 
         assert async_setup_entry.await_count == 2
-
-
-@patch("pypck.connection.PchkConnectionManager", MockPchkConnectionManager)
-async def test_connection_name_update(hass, entry):
-    """Test connection name change on update of config_entry."""
-    await init_integration(hass, entry)
-    assert entry.title == "pchk"
-    assert hass.data[DOMAIN][entry.entry_id][CONNECTION].connection_id == "pchk"
-
-    # rename config entry title
-    hass.config_entries.async_update_entry(entry, title="foobar")
-    await hass.async_block_till_done()
-
-    assert entry.title == "foobar"
-    assert hass.data[DOMAIN][entry.entry_id][CONNECTION].connection_id == "foobar"

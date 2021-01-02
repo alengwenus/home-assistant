@@ -16,14 +16,8 @@ from homeassistant.const import (
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import Entity
 
-from .const import (
-    CONF_DIM_MODE,
-    CONF_SK_NUM_TRIES,
-    CONF_UNIQUE_DEVICE_ID,
-    CONNECTION,
-    DOMAIN,
-)
-from .helpers import import_lcn_config
+from .const import CONF_DIM_MODE, CONF_SK_NUM_TRIES, CONNECTION, DOMAIN
+from .helpers import generate_unique_id, import_lcn_config
 from .schemas import CONFIG_SCHEMA  # noqa: 401
 from .services import (
     DynText,
@@ -183,10 +177,14 @@ class LcnEntity(Entity):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return (
-            f"{self.host_id}-{self.config[CONF_UNIQUE_DEVICE_ID]}"
-            f"-{self.config[CONF_RESOURCE]}"
+        unique_device_id = generate_unique_id(
+            (
+                self.device_connection.seg_id,
+                self.device_connection.addr_id,
+                self.device_connection.is_group,
+            )
         )
+        return f"{self.host_id}-{unique_device_id}-{self.config[CONF_RESOURCE]}"
 
     @property
     def should_poll(self):

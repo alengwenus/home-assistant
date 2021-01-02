@@ -3,7 +3,7 @@
 import pypck
 
 from homeassistant.components.scene import DOMAIN as DOMAIN_SCENE, Scene
-from homeassistant.const import CONF_DOMAIN, CONF_ENTITIES
+from homeassistant.const import CONF_ADDRESS, CONF_DOMAIN, CONF_ENTITIES
 
 from . import LcnEntity
 from .const import (
@@ -12,7 +12,6 @@ from .const import (
     CONF_REGISTER,
     CONF_SCENE,
     CONF_TRANSITION,
-    CONF_UNIQUE_DEVICE_ID,
     OUTPUT_PORTS,
 )
 from .helpers import get_device_connection
@@ -24,7 +23,7 @@ def create_lcn_scene_entity(hass, entity_config, config_entry):
     """Set up an entity for this domain."""
     host_id = config_entry.entry_id
     device_connection = get_device_connection(
-        hass, entity_config[CONF_UNIQUE_DEVICE_ID], config_entry
+        hass, tuple(entity_config[CONF_ADDRESS]), config_entry
     )
 
     entity = LcnScene(entity_config, host_id, device_connection)

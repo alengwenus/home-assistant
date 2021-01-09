@@ -242,15 +242,16 @@ async def async_update_device_config(
             device_config[CONF_HARDWARE_TYPE] = device_connection.hardware_type.value
 
     if device_config[CONF_NAME] == "":
-        if is_group or device_connection.hardware_serial == -1:
+        device_name = ""
+        if not is_group:
+            device_name = await device_connection.request_name()
+        if is_group or device_name == "":  # or device_connection.hardware_serial == -1:
             module_type = "Group" if is_group else "Module"
             device_name = (
                 f"{module_type} "
                 f"{device_config[CONF_ADDRESS][0]:03d}/"
                 f"{device_config[CONF_ADDRESS][1]:03d}"
             )
-        else:
-            device_name = await device_connection.request_name()
         device_config[CONF_NAME] = device_name
 
 
@@ -279,7 +280,7 @@ def get_config_entry(hass: HomeAssistantType, host_id: str) -> Optional[ConfigEn
 def get_device_config(
     address: Tuple[int, int, bool], config_entry: ConfigEntry
 ) -> Optional[ConfigType]:
-    """Return the configuration for given unique_device_id."""
+    """Return the device configuration for given unique_device_id from ConfigEntry."""
     for device_config in config_entry.data[CONF_DEVICES]:
         if tuple(device_config[CONF_ADDRESS]) == address:
             return device_config
@@ -308,13 +309,10 @@ def get_device_connection(
     hass: HomeAssistantType, address: Tuple[int, int, bool], config_entry: ConfigEntry
 ) -> Optional[DeviceConnectionType]:
     """Return a lcn device_connection."""
-    device_config = get_device_config(address, config_entry)
-    if device_config:
-        host_connection = hass.data[DOMAIN][config_entry.entry_id][CONNECTION]
-        addr = pypck.lcn_addr.LcnAddr(*address)
-        device_connection = host_connection.get_address_conn(addr)
-        return device_connection
-    return None
+    host_connection = hass.data[DOMAIN][config_entry.entry_id][CONNECTION]
+    addr = pypck.lcn_addr.LcnAddr(*address)
+    device_connection = host_connection.get_address_conn(addr)
+    return device_connection
 
 
 def has_unique_host_names(hosts: List[ConfigType]) -> List[ConfigType]:

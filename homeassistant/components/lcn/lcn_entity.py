@@ -19,6 +19,7 @@ class LcnEntity(Entity):
         self.config = config
         self.host_id = host_id
         self.device_connection = device_connection
+        self._unregister_for_inputs = None
         self._name = config[CONF_NAME]
 
     @property
@@ -64,13 +65,15 @@ class LcnEntity(Entity):
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
-        self.unregister_for_inputs = self.device_connection.register_for_inputs(
-            self.input_received
-        )
+        if not self.device_connection.is_group:
+            self._unregister_for_inputs = self.device_connection.register_for_inputs(
+                self.input_received
+            )
 
     async def async_will_remove_from_hass(self) -> None:
         """Run when entity will be removed from hass."""
-        self.unregister_for_inputs()
+        if self._unregister_for_inputs is not None:
+            self._unregister_for_inputs()
 
     @property
     def name(self) -> str:
